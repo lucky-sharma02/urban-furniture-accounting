@@ -4,6 +4,7 @@ import { AccountsPage } from "@/pages/internal/AccountsPage";
 import { ContactsPage } from "@/pages/internal/ContactsPage";
 import { DashboardPage } from "@/pages/internal/DashboardPage";
 import { JournalsPage } from "@/pages/internal/JournalsPage";
+import { PostEntryPage } from "@/pages/internal/PostEntryPage";
 import { ProductsPage } from "@/pages/internal/ProductsPage";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Route path="products" element={<ProductsPage />} />
           <Route path="accounts" element={<AccountsPage />} />
           <Route path="journals" element={<JournalsPage />} />
+          <Route path="post-entry" element={<PostEntryPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
