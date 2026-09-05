@@ -52,10 +52,16 @@ enum PurchaseOrderStatus {
 }
 
 // Draft = nothing paid yet, Partial = some but not all paid, Paid = amountDue is 0.
+// Shared by VendorBill and CustomerInvoice — name predates CustomerInvoice existing.
 enum VendorBillStatus {
   Draft
   Partial
   Paid
+}
+
+enum SalesOrderStatus {
+  Draft
+  Invoiced
 }
 
 model Contact {
@@ -71,6 +77,8 @@ model Contact {
   journalEntryLines JournalEntryLine[]
   purchaseOrders    PurchaseOrder[]
   vendorBills       VendorBill[]
+  salesOrders       SalesOrder[]
+  customerInvoices  CustomerInvoice[]
 }
 
 model Product {
@@ -83,6 +91,7 @@ model Product {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   purchaseOrderLines PurchaseOrderLine[]
+  salesOrderLines    SalesOrderLine[]
 }
 
 model Account {
@@ -172,13 +181,56 @@ model VendorBill {
   updatedAt       DateTime         @updatedAt
 }
 
+// Exactly one of vendorBillId / customerInvoiceId is set per row — enforced at the
+// application layer (each post*Payment route only ever fills in its own side).
 model Payment {
-  id               String     @id @default(cuid())
-  vendorBillId     String
-  vendorBill       VendorBill @relation(fields: [vendorBillId], references: [id])
-  amount           Decimal    @db.Decimal(12, 2)
-  date             DateTime
-  paymentAccountId String
-  paymentAccount   Account    @relation(fields: [paymentAccountId], references: [id])
-  createdAt        DateTime   @default(now())
+  id                String           @id @default(cuid())
+  vendorBillId      String?
+  vendorBill        VendorBill?      @relation(fields: [vendorBillId], references: [id])
+  customerInvoiceId String?
+  customerInvoice   CustomerInvoice? @relation(fields: [customerInvoiceId], references: [id])
+  amount            Decimal          @db.Decimal(12, 2)
+  date              DateTime
+  paymentAccountId  String
+  paymentAccount    Account          @relation(fields: [paymentAccountId], references: [id])
+  createdAt         DateTime         @default(now())
+}
+
+model SalesOrder {
+  id         String            @id @default(cuid())
+  customerId String
+  customer   Contact           @relation(fields: [customerId], references: [id])
+  date       DateTime
+  status     SalesOrderStatus  @default(Draft)
+  lines      SalesOrderLine[]
+  invoices   CustomerInvoice[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+model SalesOrderLine {
+  id           String     @id @default(cuid())
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id])
+  quantity     Decimal    @db.Decimal(12, 2)
+  unitPrice    Decimal    @db.Decimal(12, 2)
+}
+
+model CustomerInvoice {
+  id           String           @id @default(cuid())
+  salesOrderId String?
+  salesOrder   SalesOrder?      @relation(fields: [salesOrderId], references: [id])
+  customerId   String
+  customer     Contact          @relation(fields: [customerId], references: [id])
+  date         DateTime
+  baseAmount   Decimal          @db.Decimal(12, 2)
+  taxAmount    Decimal          @db.Decimal(12, 2)
+  amount       Decimal          @db.Decimal(12, 2)
+  amountDue    Decimal          @db.Decimal(12, 2)
+  status       VendorBillStatus @default(Draft)
+  payments     Payment[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 }
