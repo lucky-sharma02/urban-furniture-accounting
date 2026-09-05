@@ -69,3 +69,5 @@ export interface JwtPayload {
 export type DocumentStatus = "Draft" | "Partial" | "Paid";
 
 export type PurchaseOrderStatus = "Draft" | "Billed";
+
+export type SalesOrderStatus = "Draft" | "Invoiced";
