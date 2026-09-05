@@ -6,6 +6,7 @@ import journalEntriesRouter from "./routes/journal-entries";
 import journalsRouter from "./routes/journals";
 import productsRouter from "./routes/products";
 import purchaseOrdersRouter from "./routes/purchase-orders";
+import vendorBillsRouter from "./routes/vendor-bills";
 
 const app = express();
 
@@ -26,5 +27,6 @@ app.use("/journal-entries", journalEntriesRouter);
 app.use("/journals", journalsRouter);
 app.use("/products", productsRouter);
 app.use("/purchase-orders", purchaseOrdersRouter);
+app.use("/vendor-bills", vendorBillsRouter);
 
 export default app;
