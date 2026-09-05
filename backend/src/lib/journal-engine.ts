@@ -189,3 +189,30 @@ export async function postCustomerInvoice(input: PostCustomerInvoiceInput) {
     lines,
   });
 }
+
+export interface PostCustomerPaymentInput {
+  journalId: string;
+  customerId: string;
+  amount: number;
+  date: Date;
+  reference?: string;
+  sourceId: string;
+  paymentAccountId: string;
+}
+
+// Payment from Customer: Debit Bank/Cash, Credit Debtors.
+export async function postCustomerPayment(input: PostCustomerPaymentInput) {
+  const debtors = await getAccountByName("Debtors");
+
+  return postJournalEntry({
+    journalId: input.journalId,
+    date: input.date,
+    reference: input.reference,
+    sourceType: "CustomerPayment",
+    sourceId: input.sourceId,
+    lines: [
+      { accountId: input.paymentAccountId, partnerId: input.customerId, debit: input.amount, credit: 0 },
+      { accountId: debtors.id, partnerId: input.customerId, debit: 0, credit: input.amount },
+    ],
+  });
+}
