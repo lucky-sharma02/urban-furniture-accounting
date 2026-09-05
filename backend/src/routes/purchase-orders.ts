@@ -23,6 +23,49 @@ function isValidLine(line: unknown): line is LineInput {
   );
 }
 
+router.get("/", async (_req, res) => {
+  const purchaseOrders = await prisma.purchaseOrder.findMany({
+    include: { lines: true, vendor: true },
+    orderBy: { date: "desc" },
+  });
+
+  res.json(
+    purchaseOrders.map((po) => ({
+      ...po,
+      lines: po.lines.map((line) => ({
+        ...line,
+        quantity: line.quantity.toNumber(),
+        unitPrice: line.unitPrice.toNumber(),
+      })),
+    })),
+  );
+});
+
+router.get("/:id", async (req, res) => {
+  const purchaseOrder = await prisma.purchaseOrder.findUnique({
+    where: { id: req.params.id },
+    include: { lines: true, vendor: true, vendorBills: true },
+  });
+
+  if (!purchaseOrder) {
+    return res.status(404).json({ error: "purchase order not found" });
+  }
+
+  res.json({
+    ...purchaseOrder,
+    lines: purchaseOrder.lines.map((line) => ({
+      ...line,
+      quantity: line.quantity.toNumber(),
+      unitPrice: line.unitPrice.toNumber(),
+    })),
+    vendorBills: purchaseOrder.vendorBills.map((bill) => ({
+      ...bill,
+      amount: bill.amount.toNumber(),
+      amountDue: bill.amountDue.toNumber(),
+    })),
+  });
+});
+
 router.post("/", async (req, res) => {
   const { vendorId, date, lines } = req.body;
 

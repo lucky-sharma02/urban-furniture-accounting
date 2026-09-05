@@ -10,6 +10,42 @@ function toCents(amount: number): number {
   return Math.round(amount * 100);
 }
 
+router.get("/", async (_req, res) => {
+  const vendorBills = await prisma.vendorBill.findMany({
+    include: { vendor: true },
+    orderBy: { date: "desc" },
+  });
+
+  res.json(
+    vendorBills.map((bill) => ({
+      ...bill,
+      amount: bill.amount.toNumber(),
+      amountDue: bill.amountDue.toNumber(),
+    })),
+  );
+});
+
+router.get("/:id", async (req, res) => {
+  const vendorBill = await prisma.vendorBill.findUnique({
+    where: { id: req.params.id },
+    include: { vendor: true, payments: true },
+  });
+
+  if (!vendorBill) {
+    return res.status(404).json({ error: "vendor bill not found" });
+  }
+
+  res.json({
+    ...vendorBill,
+    amount: vendorBill.amount.toNumber(),
+    amountDue: vendorBill.amountDue.toNumber(),
+    payments: vendorBill.payments.map((payment) => ({
+      ...payment,
+      amount: payment.amount.toNumber(),
+    })),
+  });
+});
+
 // Create a Vendor Bill directly, with no backing Purchase Order.
 router.post("/", async (req, res) => {
   const { vendorId, date, amount } = req.body;
