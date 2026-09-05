@@ -8,6 +8,7 @@ import { PostEntryPage } from "@/pages/internal/PostEntryPage";
 import { ProductsPage } from "@/pages/internal/ProductsPage";
 import { PurchaseOrdersPage } from "@/pages/internal/PurchaseOrdersPage";
 import { VendorBillDetailPage } from "@/pages/internal/VendorBillDetailPage";
+import { VendorBillsPage } from "@/pages/internal/VendorBillsPage";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route path="journals" element={<JournalsPage />} />
           <Route path="post-entry" element={<PostEntryPage />} />
           <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
+          <Route path="vendor-bills" element={<VendorBillsPage />} />
           <Route path="vendor-bills/:id" element={<VendorBillDetailPage />} />
         </Route>
       </Routes>
