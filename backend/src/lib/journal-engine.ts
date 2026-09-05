@@ -1,4 +1,5 @@
-import type { JournalEntrySourceType } from "@prisma/client";
+import type { AccountType, JournalEntrySourceType } from "@prisma/client";
+import { ACCOUNT_TYPE_NORMAL_SIDE } from "@urban-furniture/shared";
 import { prisma } from "./prisma";
 
 export interface JournalEntryLineInput {
@@ -215,4 +216,40 @@ export async function postCustomerPayment(input: PostCustomerPaymentInput) {
       { accountId: debtors.id, partnerId: input.customerId, debit: 0, credit: input.amount },
     ],
   });
+}
+
+export interface AccountBalance {
+  accountId: string;
+  accountName: string;
+  accountType: AccountType;
+  debitTotal: number;
+  creditTotal: number;
+  // Signed so the account's own normal side is always positive — e.g. an Asset
+  // account with more debits than credits reports a positive balance.
+  balance: number;
+}
+
+// Running balance for one account, computed from posted JournalEntryLines.
+// Used by reports (M5) instead of re-deriving it from raw transactions each time.
+export async function getAccountBalance(accountId: string): Promise<AccountBalance> {
+  const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
+
+  const totals = await prisma.journalEntryLine.aggregate({
+    where: { accountId },
+    _sum: { debit: true, credit: true },
+  });
+
+  const debitTotal = totals._sum.debit?.toNumber() ?? 0;
+  const creditTotal = totals._sum.credit?.toNumber() ?? 0;
+  const normalSide = ACCOUNT_TYPE_NORMAL_SIDE[account.type];
+  const balance = normalSide === "Debit" ? debitTotal - creditTotal : creditTotal - debitTotal;
+
+  return {
+    accountId: account.id,
+    accountName: account.name,
+    accountType: account.type,
+    debitTotal,
+    creditTotal,
+    balance,
+  };
 }
