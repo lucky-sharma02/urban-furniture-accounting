@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createUser, type NewUserRole } from "@/lib/api/users";
+import { firstError, isEmail, isNonEmpty } from "@/lib/validation";
 
 interface UserFormDialogProps {
   open: boolean;
@@ -48,6 +49,18 @@ export function UserFormDialog({ open, onOpenChange, onSaved }: UserFormDialogPr
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const validationError = firstError([
+      [!isPortalRole || isNonEmpty(name), `${role} name is required.`],
+      [isNonEmpty(email), "Email is required."],
+      [isEmail(email), "Enter a valid email address (name@domain.com)."],
+      [password.length >= 6, "Password must be at least 6 characters."],
+    ]);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -68,35 +81,36 @@ export function UserFormDialog({ open, onOpenChange, onSaved }: UserFormDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={handleSubmit} autoComplete="off">
+      <DialogContent className="border border-slate-200 bg-white shadow-elevated sm:max-w-md">
+        <form onSubmit={handleSubmit} autoComplete="off" noValidate>
           <DialogHeader>
-            <DialogTitle>New User</DialogTitle>
+            <DialogTitle className="font-display text-base font-bold text-slate-900">New User</DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-4">
+          <div className="flex flex-col gap-3.5 py-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="user-role">Role</Label>
+              <Label htmlFor="user-role" required className="text-xs font-semibold text-slate-700">Access Role</Label>
               <Select value={role} onValueChange={(value) => setRole(value as NewUserRole)}>
-                <SelectTrigger id="user-role">
+                <SelectTrigger id="user-role" className="h-9 border-slate-200 bg-slate-50 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Accountant">Accountant</SelectItem>
-                  <SelectItem value="Vendor">Vendor</SelectItem>
-                  <SelectItem value="Customer">Customer</SelectItem>
+                <SelectContent className="border border-slate-200 bg-white shadow-card">
+                  <SelectItem value="Admin" className="text-xs">Admin</SelectItem>
+                  <SelectItem value="Accountant" className="text-xs">Accountant</SelectItem>
+                  <SelectItem value="Vendor" className="text-xs">Vendor</SelectItem>
+                  <SelectItem value="Customer" className="text-xs">Customer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {isPortalRole && (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="user-name">{role} name</Label>
+                <Label htmlFor="user-name" required className="text-xs font-semibold text-slate-700">{role} name</Label>
                 <Input
                   id="user-name"
                   required
                   autoComplete="off"
+                  className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -104,36 +118,56 @@ export function UserFormDialog({ open, onOpenChange, onSaved }: UserFormDialogPr
             )}
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="user-email">Email</Label>
+              <Label htmlFor="user-email" required className="text-xs font-semibold text-slate-700">Email</Label>
               <Input
                 id="user-email"
                 type="email"
                 required
                 autoComplete="off"
+                className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="user-password">Password</Label>
+              <Label htmlFor="user-password" required className="text-xs font-semibold text-slate-700">Password</Label>
               <Input
                 id="user-password"
                 type="password"
                 required
                 minLength={6}
                 autoComplete="new-password"
+                className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <div className="rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs font-medium text-rose-700">
+                {error}
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 border-slate-200 text-xs font-medium"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving}
+              className="ml-2 h-9 bg-slate-900 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+            >
+              {saving ? "Saving..." : "Create User"}
             </Button>
           </DialogFooter>
         </form>

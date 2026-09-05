@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { VendorBillFormDialog } from "@/components/purchases/VendorBillFormDialog";
-import { useAuth } from "@/lib/auth-context";
 import { listVendorBills, type VendorBill } from "@/lib/api/vendor-bills";
+import { Plus } from "lucide-react";
 
 interface VendorBillWithVendor extends VendorBill {
   vendor?: { name: string };
@@ -14,8 +14,6 @@ interface VendorBillWithVendor extends VendorBill {
 
 export function VendorBillsPage() {
   const navigate = useNavigate();
-  const { auth } = useAuth();
-  const isPortal = auth?.role === "Contact";
   const [vendorBills, setVendorBills] = useState<VendorBillWithVendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -44,56 +42,85 @@ export function VendorBillsPage() {
   }, [vendorBills, search]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{isPortal ? "My Bills" : "Vendor Bills"}</h1>
-        {!isPortal && <Button onClick={() => setFormOpen(true)}>New Bill</Button>}
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <SearchBar onSearch={setSearch} placeholder="Search by ref, vendor, or status — press Enter" />
+        <Button onClick={() => setFormOpen(true)} size="sm" className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle transition-colors hover:bg-slate-800">
+          <Plus className="h-3.5 w-3.5" />
+          New Bill
+        </Button>
       </div>
 
-      <Input
-        placeholder="Search by ref, vendor, or status..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="max-w-sm"
-      />
-
-      {!isPortal && <VendorBillFormDialog open={formOpen} onOpenChange={setFormOpen} onSaved={load} />}
+      <VendorBillFormDialog open={formOpen} onOpenChange={setFormOpen} onSaved={load} />
 
       {loading ? (
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="py-16 text-center text-xs text-slate-500 bg-white rounded-lg border border-slate-200 shadow-card">
+          <div className="inline-block w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin mb-3"></div>
+          <p>Loading vendor bills...</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <p className="text-muted-foreground">No vendor bills found.</p>
+        <div className="p-12 text-center rounded-lg border border-dashed border-slate-300 bg-white shadow-card">
+          <p className="text-sm font-semibold text-slate-800">No vendor bills found</p>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Create a new bill directly or convert a purchase order into a bill to start tracking supplier payables.</p>
+          <Button onClick={() => setFormOpen(true)} size="sm" variant="outline" className="mt-4 text-xs font-medium">
+            Create First Bill
+          </Button>
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Ref</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Amount Due</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((bill) => (
-              <TableRow
-                key={bill.id}
-                className="cursor-pointer"
-                onClick={() => navigate(`${isPortal ? "/portal" : ""}/vendor-bills/${bill.id}`)}
-              >
-                <TableCell className="font-medium">{bill.refNumber}</TableCell>
-                <TableCell>{bill.vendor?.name ?? bill.vendorId}</TableCell>
-                <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
-                <TableCell>{bill.amount.toFixed(2)}</TableCell>
-                <TableCell>{bill.amountDue.toFixed(2)}</TableCell>
-                <TableCell>
-                  <Badge variant={bill.status === "Paid" ? "default" : "outline"}>{bill.status}</Badge>
-                </TableCell>
+        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-card">
+          <Table>
+            <TableHeader className="bg-slate-50 border-b border-slate-200">
+              <TableRow className="border-slate-200 hover:bg-transparent">
+                <TableHead className="text-xs font-semibold text-slate-700 h-10 px-4">Reference</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 h-10 px-4">Vendor</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700 h-10 px-4">Bill Date</TableHead>
+                <TableHead className="text-right text-xs font-semibold text-slate-700 h-10 px-4">Total Amount</TableHead>
+                <TableHead className="text-right text-xs font-semibold text-slate-700 h-10 px-4">Amount Due</TableHead>
+                <TableHead className="text-center text-xs font-semibold text-slate-700 h-10 px-4">Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((bill) => (
+                <TableRow
+                  key={bill.id}
+                  className="cursor-pointer border-slate-100 hover:bg-slate-50/80 transition-colors"
+                  onClick={() => navigate(`/vendor-bills/${bill.id}`)}
+                >
+                  <TableCell className="px-4 py-3 font-mono text-xs font-medium text-slate-900">{bill.refNumber}</TableCell>
+                  <TableCell className="font-medium text-xs text-slate-900 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 uppercase">
+                        {(bill.vendor?.name ?? bill.vendorId).substring(0, 2)}
+                      </div>
+                      <span>{bill.vendor?.name ?? bill.vendorId}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-500 px-4 py-3">{new Date(bill.date).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}</TableCell>
+                  <TableCell className="text-right text-xs font-semibold text-slate-900 tabular-nums px-4 py-3">₹{bill.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right text-xs font-semibold tabular-nums px-4 py-3">
+                    <span className={bill.amountDue > 0 ? "text-rose-600" : "text-slate-400"}>
+                      ₹{bill.amountDue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center px-4 py-3">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                        bill.status === "Paid"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : bill.status === "Partial"
+                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}
+                    >
+                      {bill.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

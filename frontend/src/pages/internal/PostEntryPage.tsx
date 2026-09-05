@@ -104,129 +104,151 @@ export function PostEntryPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Post Journal Entry</h1>
+    <div className="space-y-6 max-w-4xl">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900 font-display">Post Journal Entry</h1>
+        <p className="text-xs text-slate-500 mt-0.5">Record double-entry transactions across permanent and nominal ledger journals.</p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="date">Accounting Date</Label>
-            <Input id="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="p-5 rounded-lg border border-slate-200 bg-white shadow-card">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="date" required className="text-xs font-semibold text-slate-700">Accounting Date</Label>
+              <Input id="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="h-9 text-xs bg-slate-50 border-slate-200 font-mono" />
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="journal">Journal</Label>
-            <Select value={journalId} onValueChange={setJournalId}>
-              <SelectTrigger id="journal">
-                <SelectValue placeholder="Select a journal" />
-              </SelectTrigger>
-              <SelectContent>
-                {journals.map((journal) => (
-                  <SelectItem key={journal.id} value={journal.id}>
-                    {journal.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="journal" required className="text-xs font-semibold text-slate-700">Journal Book</Label>
+              <Select value={journalId} onValueChange={setJournalId}>
+                <SelectTrigger id="journal" className="h-9 text-xs bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Select a journal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {journals.map((journal) => (
+                    <SelectItem key={journal.id} value={journal.id}>
+                      {journal.name} ({journal.type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="reference">Reference</Label>
-            <Input id="reference" value={reference} onChange={(e) => setReference(e.target.value)} />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="reference" className="text-xs font-semibold text-slate-700">Reference / Memo</Label>
+              <Input id="reference" placeholder="e.g. INV/2026/001" value={reference} onChange={(e) => setReference(e.target.value)} className="h-9 text-xs bg-slate-50 border-slate-200" />
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-[1fr_1fr_120px_120px_auto] gap-2 px-1 text-xs font-medium text-muted-foreground">
-            <span>Account</span>
-            <span>Partner</span>
-            <span>Debit</span>
-            <span>Credit</span>
-            <span />
+        <div className="p-5 rounded-lg border border-slate-200 bg-white shadow-card space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 font-display">Journal Entry Lines</h3>
+            <span className="text-[11px] text-slate-400 font-mono">Minimum 2 lines required</span>
           </div>
 
-          {lines.map((line) => (
-            <div key={line.key} className="grid grid-cols-[1fr_1fr_120px_120px_auto] items-center gap-2">
-              <Select value={line.accountId} onValueChange={(value) => updateLine(line.key, { accountId: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="grid grid-cols-[1fr_1fr_120px_120px_auto] gap-2 px-1 text-xs font-semibold text-slate-700">
+            <span>Account Title<span className="ml-0.5 text-rose-500" aria-hidden="true">*</span></span>
+            <span>Partner (Optional)</span>
+            <span className="text-right">Debit (₹)</span>
+            <span className="text-right">Credit (₹)</span>
+            <span className="w-16" />
+          </div>
 
-              <Select
-                value={line.partnerId ?? "none"}
-                onValueChange={(value) => updateLine(line.key, { partnerId: value === "none" ? undefined : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Partner" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">—</SelectItem>
-                  {contacts.map((contact) => (
-                    <SelectItem key={contact.id} value={contact.id}>
-                      {contact.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="space-y-2">
+            {lines.map((line) => (
+              <div key={line.key} className="grid grid-cols-[1fr_1fr_120px_120px_auto] items-center gap-2">
+                <Select value={line.accountId} onValueChange={(value) => updateLine(line.key, { accountId: value })}>
+                  <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="Select Account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} ({account.type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={line.debit || ""}
-                onChange={(e) => updateLine(line.key, { debit: Number(e.target.value) || 0 })}
-              />
+                <Select
+                  value={line.partnerId ?? "none"}
+                  onValueChange={(value) => updateLine(line.key, { partnerId: value === "none" ? undefined : value })}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="Partner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    {contacts.map((contact) => (
+                      <SelectItem key={contact.id} value={contact.id}>
+                        {contact.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={line.credit || ""}
-                onChange={(e) => updateLine(line.key, { credit: Number(e.target.value) || 0 })}
-              />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={line.debit || ""}
+                  onChange={(e) => updateLine(line.key, { debit: Number(e.target.value) || 0 })}
+                  className="h-9 text-xs text-right tabular-nums bg-slate-50 border-slate-200 font-mono"
+                />
 
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={lines.length <= 2}
-                onClick={() => removeLine(line.key)}
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={line.credit || ""}
+                  onChange={(e) => updateLine(line.key, { credit: Number(e.target.value) || 0 })}
+                  className="h-9 text-xs text-right tabular-nums bg-slate-50 border-slate-200 font-mono"
+                />
 
-          <Button type="button" variant="outline" size="sm" className="w-fit" onClick={addLine}>
-            Add Line
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={lines.length <= 2}
+                  onClick={() => removeLine(line.key)}
+                  className="h-9 w-16 text-xs text-rose-600 hover:bg-rose-50"
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button type="button" variant="outline" size="sm" className="text-xs h-8 bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700" onClick={addLine}>
+            + Add Line
           </Button>
         </div>
 
         <div
           className={cn(
-            "w-fit rounded-md border px-3 py-2 text-sm",
+            "w-fit rounded-md border px-4 py-2 text-xs font-medium tabular-nums flex items-center gap-2",
             isBalanced
-              ? "border-green-200 bg-green-50 text-green-700"
-              : "border-destructive/30 bg-destructive/5 text-destructive",
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-rose-200 bg-rose-50 text-rose-800",
           )}
         >
-          Debit: {totalDebit.toFixed(2)} · Credit: {totalCredit.toFixed(2)} ·{" "}
-          {isBalanced ? "Balanced" : `Unbalanced by ${Math.abs(totalDebit - totalCredit).toFixed(2)}`}
+          <span>Total Debit: <strong className="font-mono">₹{totalDebit.toFixed(2)}</strong></span>
+          <span>·</span>
+          <span>Total Credit: <strong className="font-mono">₹{totalCredit.toFixed(2)}</strong></span>
+          <span>·</span>
+          <span className="font-semibold">
+            {isBalanced ? "✓ Balanced & Audited" : `✗ Unbalanced by ₹${Math.abs(totalDebit - totalCredit).toFixed(2)}`}
+          </span>
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        {success && <p className="text-sm text-green-600">{success}</p>}
+        {error && <p className="text-xs text-rose-700 bg-rose-50 p-3 rounded-md border border-rose-200 font-medium">{error}</p>}
+        {success && <p className="text-xs text-emerald-800 bg-emerald-50 p-3 rounded-md border border-emerald-200 font-medium">{success}</p>}
 
-        <Button type="submit" className="w-fit" disabled={saving || !isBalanced}>
-          {saving ? "Posting..." : "Post Entry"}
+        <Button type="submit" className="h-9 px-5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle transition-colors" disabled={saving || !isBalanced}>
+          {saving ? "Posting Entry..." : "Post Journal Entry"}
         </Button>
       </form>
     </div>
