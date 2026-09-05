@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SalesOrderFormDialog } from "@/components/sales/SalesOrderFormDialog";
-import { listSalesOrders, type SalesOrder } from "@/lib/api/sales-orders";
+import { generateInvoiceFromSalesOrder, listSalesOrders, type SalesOrder } from "@/lib/api/sales-orders";
 
 interface SalesOrderWithCustomer extends SalesOrder {
   customer?: { name: string };
 }
 
 export function SalesOrdersPage() {
+  const navigate = useNavigate();
   const [salesOrders, setSalesOrders] = useState<SalesOrderWithCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [generating, setGenerating] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -27,6 +30,16 @@ export function SalesOrdersPage() {
 
   function total(so: SalesOrder) {
     return so.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+  }
+
+  async function handleGenerateInvoice(soId: string) {
+    setGenerating(soId);
+    try {
+      const invoice = await generateInvoiceFromSalesOrder(soId);
+      navigate(`/customer-invoices/${invoice.id}`);
+    } finally {
+      setGenerating(null);
+    }
   }
 
   return (
@@ -50,6 +63,7 @@ export function SalesOrdersPage() {
               <TableHead>Date</TableHead>
               <TableHead>Total (before tax)</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -60,6 +74,18 @@ export function SalesOrdersPage() {
                 <TableCell>{total(so).toFixed(2)}</TableCell>
                 <TableCell>
                   <Badge variant={so.status === "Invoiced" ? "default" : "outline"}>{so.status}</Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  {so.status === "Draft" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={generating === so.id}
+                      onClick={() => handleGenerateInvoice(so.id)}
+                    >
+                      {generating === so.id ? "Generating..." : "Generate Invoice"}
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
