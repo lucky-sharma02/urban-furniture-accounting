@@ -1,5 +1,8 @@
 node_modules/
 
+# local instructions, not tracked
+CLAUDE.md
+
 # env
 .env
 .env.*.local
