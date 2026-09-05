@@ -147,3 +147,45 @@ export async function postVendorPayment(input: PostVendorPaymentInput) {
     ],
   });
 }
+
+export interface PostCustomerInvoiceInput {
+  journalId: string;
+  customerId: string;
+  baseAmount: number;
+  // Tax is in scope for this build. A 0 taxAmount (e.g. a tax-exempt line) still
+  // produces a valid 2-line entry — the Tax Payable line is only added when > 0.
+  taxAmount: number;
+  date: Date;
+  reference?: string;
+  sourceId: string;
+}
+
+// Customer Invoice generated: Debit Debtors (full amount), Credit Sales Income (base)
+// + Credit Tax Payable (tax) when tax > 0 — a 3-line entry.
+export async function postCustomerInvoice(input: PostCustomerInvoiceInput) {
+  const [debtors, salesIncome] = await Promise.all([
+    getAccountByName("Debtors"),
+    getAccountByName("Sales Income"),
+  ]);
+
+  const totalAmount = input.baseAmount + input.taxAmount;
+
+  const lines: JournalEntryLineInput[] = [
+    { accountId: debtors.id, partnerId: input.customerId, debit: totalAmount, credit: 0 },
+    { accountId: salesIncome.id, partnerId: input.customerId, debit: 0, credit: input.baseAmount },
+  ];
+
+  if (input.taxAmount > 0) {
+    const taxPayable = await getAccountByName("Tax Payable");
+    lines.push({ accountId: taxPayable.id, partnerId: input.customerId, debit: 0, credit: input.taxAmount });
+  }
+
+  return postJournalEntry({
+    journalId: input.journalId,
+    date: input.date,
+    reference: input.reference,
+    sourceType: "CustomerInvoice",
+    sourceId: input.sourceId,
+    lines,
+  });
+}
