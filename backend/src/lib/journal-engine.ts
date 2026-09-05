@@ -78,3 +78,43 @@ export async function postJournalEntry(input: PostJournalEntryInput) {
     });
   });
 }
+
+// Fixed accounts (Purchase Expense, Creditors, Debtors, Sales Income, Tax Payable, ...)
+// are looked up by name rather than passed as ids, since the debit/credit mapping
+// itself is hardcoded business logic, not something callers should be able to vary.
+export async function getAccountByName(name: string) {
+  const account = await prisma.account.findUnique({ where: { name } });
+  if (!account) {
+    throw new Error(`required account "${name}" not found — has the seed script run?`);
+  }
+  return account;
+}
+
+export interface PostVendorBillInput {
+  journalId: string;
+  vendorId: string;
+  amount: number;
+  date: Date;
+  reference?: string;
+  sourceId: string;
+}
+
+// Vendor Bill confirmed: Debit Purchase Expense, Credit Creditors.
+export async function postVendorBill(input: PostVendorBillInput) {
+  const [purchaseExpense, creditors] = await Promise.all([
+    getAccountByName("Purchase Expense"),
+    getAccountByName("Creditors"),
+  ]);
+
+  return postJournalEntry({
+    journalId: input.journalId,
+    date: input.date,
+    reference: input.reference,
+    sourceType: "VendorBill",
+    sourceId: input.sourceId,
+    lines: [
+      { accountId: purchaseExpense.id, partnerId: input.vendorId, debit: input.amount, credit: 0 },
+      { accountId: creditors.id, partnerId: input.vendorId, debit: 0, credit: input.amount },
+    ],
+  });
+}
