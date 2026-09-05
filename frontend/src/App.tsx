@@ -1,35 +1,24 @@
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
-
-type HealthStatus = "checking" | "ok" | "error";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { AccountsPage } from "@/pages/internal/AccountsPage";
+import { ContactsPage } from "@/pages/internal/ContactsPage";
+import { DashboardPage } from "@/pages/internal/DashboardPage";
+import { JournalsPage } from "@/pages/internal/JournalsPage";
+import { ProductsPage } from "@/pages/internal/ProductsPage";
 
 function App() {
-  const [status, setStatus] = useState<HealthStatus>("checking");
-
-  useEffect(() => {
-    apiFetch<{ status: string }>("/health")
-      .then(() => setStatus("ok"))
-      .catch(() => setStatus("error"));
-  }, []);
-
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-2">
-      <h1 className="text-2xl font-semibold">Urban Furniture Accounting</h1>
-      <p className="text-muted-foreground">
-        Backend health check:{" "}
-        <span
-          className={
-            status === "ok"
-              ? "text-green-600"
-              : status === "error"
-                ? "text-destructive"
-                : ""
-          }
-        >
-          {status}
-        </span>
-      </p>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="contacts" element={<ContactsPage />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="accounts" element={<AccountsPage />} />
+          <Route path="journals" element={<JournalsPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 
