@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import accountsRouter from "./routes/accounts";
+import journalsRouter from "./routes/journals";
 
 const app = express();
 
@@ -16,5 +17,6 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/accounts", accountsRouter);
+app.use("/journals", journalsRouter);
 
 export default app;
