@@ -16,8 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { listAccounts, type Account } from "@/lib/api/accounts";
+import { listPaymentAccounts, type PaymentAccount } from "@/lib/api/accounts";
 import { recordCustomerInvoicePayment } from "@/lib/api/customer-invoices";
+import { firstError, isAmount, isIsoDate } from "@/lib/validation";
 
 interface RecordInvoicePaymentDialogProps {
   open: boolean;
@@ -34,7 +35,7 @@ export function RecordInvoicePaymentDialog({
   amountDue,
   onRecorded,
 }: RecordInvoicePaymentDialogProps) {
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [paymentAccountId, setPaymentAccountId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState("");
@@ -43,7 +44,7 @@ export function RecordInvoicePaymentDialog({
 
   useEffect(() => {
     if (open) {
-      listAccounts().then((data) => setAccounts(data.filter((a) => a.type === "Bank" || a.type === "Cash")));
+      listPaymentAccounts().then(setAccounts);
       setPaymentAccountId("");
       setDate(new Date().toISOString().slice(0, 10));
       setAmount(String(amountDue));
@@ -53,6 +54,19 @@ export function RecordInvoicePaymentDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const validationError = firstError([
+      [paymentAccountId !== "", "Select a Bank or Cash account."],
+      [isIsoDate(date), "Enter a valid payment date."],
+      [isAmount(amount), "Amount must be a number like 1200 or 1200.50."],
+      [Number(amount) > 0, "Amount must be greater than zero."],
+      [Number(amount) <= amountDue, `Amount cannot exceed the balance due of ₹${amountDue.toFixed(2)}.`],
+    ]);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -72,25 +86,34 @@ export function RecordInvoicePaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={handleSubmit}>
+      <DialogContent className="border border-slate-200 bg-white shadow-elevated sm:max-w-md">
+        <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
+            <DialogTitle className="font-display text-base font-bold text-slate-900">
+              Record Customer Payment
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-4">
-            <p className="text-sm text-muted-foreground">Amount due: {amountDue.toFixed(2)}</p>
+          <div className="flex flex-col gap-3.5 py-4">
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <span className="text-xs font-semibold text-slate-500">Amount Due:</span>
+              <span className="font-display text-sm font-bold tabular-nums text-rose-600">
+                ₹{amountDue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="invoice-payment-account">Deposit To</Label>
+              <Label htmlFor="invoice-payment-account" required className="text-xs font-semibold text-slate-700">
+                Deposit Account (Bank / Cash)
+              </Label>
               <Select value={paymentAccountId} onValueChange={setPaymentAccountId}>
-                <SelectTrigger id="invoice-payment-account">
-                  <SelectValue placeholder="Select Bank or Cash" />
+                <SelectTrigger id="invoice-payment-account" className="h-9 border-slate-200 bg-slate-50 text-xs">
+                  <SelectValue placeholder="Select Bank or Cash account" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="border border-slate-200 bg-white shadow-card">
                   {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
+                    <SelectItem key={account.id} value={account.id} className="text-xs text-slate-700">
+                      {account.name} ({account.type})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -98,18 +121,23 @@ export function RecordInvoicePaymentDialog({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="invoice-payment-date">Date</Label>
+              <Label htmlFor="invoice-payment-date" required className="text-xs font-semibold text-slate-700">
+                Payment Date
+              </Label>
               <Input
                 id="invoice-payment-date"
                 type="date"
                 required
+                className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="invoice-payment-amount">Amount</Label>
+              <Label htmlFor="invoice-payment-amount" required className="text-xs font-semibold text-slate-700">
+                Amount Received (₹)
+              </Label>
               <Input
                 id="invoice-payment-amount"
                 type="number"
@@ -117,17 +145,37 @@ export function RecordInvoicePaymentDialog({
                 max={amountDue}
                 step="0.01"
                 required
+                placeholder="0.00"
+                className="h-9 border-slate-200 bg-slate-50 text-xs tabular-nums focus:bg-white"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <div className="rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs font-medium text-rose-700">
+                {error}
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={saving || !paymentAccountId}>
-              {saving ? "Saving..." : "Record Payment"}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 border-slate-200 text-xs font-medium"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving || !paymentAccountId}
+              className="ml-2 h-9 bg-slate-900 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+            >
+              {saving ? "Posting Payment..." : "Record Payment"}
             </Button>
           </DialogFooter>
         </form>

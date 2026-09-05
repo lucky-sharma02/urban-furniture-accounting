@@ -8,6 +8,7 @@ import contactsRouter from "./routes/contacts";
 import customerInvoicesRouter from "./routes/customer-invoices";
 import journalEntriesRouter from "./routes/journal-entries";
 import journalsRouter from "./routes/journals";
+import paymentAccountsRouter from "./routes/payment-accounts";
 import productsRouter from "./routes/products";
 import purchaseOrdersRouter from "./routes/purchase-orders";
 import reportsRouter from "./routes/reports";
@@ -53,5 +54,9 @@ app.use("/users", requireRole("Admin"), usersRouter);
 // since Contact users get read-only + payment-only access scoped to their own records.
 app.use("/customer-invoices", customerInvoicesRouter);
 app.use("/vendor-bills", vendorBillsRouter);
+
+// Bank/Cash accounts for the Record Payment dialog — every authenticated role,
+// including Contact (portal) users who cannot reach /accounts.
+app.use("/payment-accounts", paymentAccountsRouter);
 
 export default app;

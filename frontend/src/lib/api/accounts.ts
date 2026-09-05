@@ -19,6 +19,20 @@ export function listAccounts(includeArchived = false) {
   return apiFetch<Account[]>(`/accounts${includeArchived ? "?includeArchived=true" : ""}`);
 }
 
+export interface PaymentAccount {
+  id: string;
+  name: string;
+  type: AccountType;
+}
+
+/**
+ * Bank/Cash accounts for the Record Payment dialog. Unlike listAccounts(), this is
+ * available to every authenticated role, including Contact (portal) users.
+ */
+export function listPaymentAccounts() {
+  return apiFetch<PaymentAccount[]>("/payment-accounts");
+}
+
 export function createAccount(input: AccountInput) {
   return apiFetch<Account>("/accounts", { method: "POST", body: JSON.stringify(input) });
 }

@@ -24,6 +24,7 @@ import {
   type PurchaseOrder,
   type PurchaseOrderLineInput,
 } from "@/lib/api/purchase-orders";
+import { firstError, isIsoDate } from "@/lib/validation";
 
 interface PurchaseOrderFormDialogProps {
   open: boolean;
@@ -94,6 +95,20 @@ export function PurchaseOrderFormDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const validationError = firstError([
+      [vendorId !== "", "Select a vendor."],
+      [isIsoDate(date), "Enter a valid order date."],
+      [lines.every((l) => l.productId !== ""), "Every line item needs a product selected."],
+      [lines.every((l) => l.quantity > 0), "Every line quantity must be greater than zero."],
+      [lines.every((l) => l.unitPrice >= 0), "Line prices cannot be negative."],
+      [total > 0, "The order total must be greater than zero."],
+    ]);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -118,23 +133,25 @@ export function PurchaseOrderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={handleSubmit}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto border border-slate-200 bg-white shadow-elevated sm:max-w-2xl">
+        <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>{editingOrder ? "Edit Purchase Order" : "New Purchase Order"}</DialogTitle>
+            <DialogTitle className="font-display text-base font-bold text-slate-900">
+              {editingOrder ? "Edit Purchase Order" : "Create Purchase Order"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="vendor">Vendor</Label>
+                <Label htmlFor="vendor" required className="text-xs font-semibold text-slate-700">Vendor / Supplier</Label>
                 <Select value={vendorId} onValueChange={setVendorId}>
-                  <SelectTrigger id="vendor">
+                  <SelectTrigger id="vendor" className="h-9 border-slate-200 bg-slate-50 text-xs">
                     <SelectValue placeholder="Select a vendor" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border border-slate-200 bg-white shadow-card">
                     {vendors.map((vendor) => (
-                      <SelectItem key={vendor.id} value={vendor.id}>
+                      <SelectItem key={vendor.id} value={vendor.id} className="text-xs text-slate-700">
                         {vendor.name}
                       </SelectItem>
                     ))}
@@ -143,21 +160,32 @@ export function PurchaseOrderFormDialog({
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+                <Label htmlFor="date" required className="text-xs font-semibold text-slate-700">Order Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  required
+                  className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-[1fr_100px_120px_auto] gap-2 px-1 text-xs font-medium text-muted-foreground">
-                <span>Product</span>
-                <span>Qty</span>
-                <span>Unit Price</span>
+            <div className="flex flex-col gap-2 border-t border-slate-100 pt-2">
+              <Label required className="font-display text-xs font-bold uppercase tracking-wider text-slate-900">
+                Order Line Items
+              </Label>
+
+              <div className="grid grid-cols-[1fr_90px_110px_70px] gap-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <span>Product Item</span>
+                <span className="text-center">Qty</span>
+                <span className="text-right">Unit Price</span>
                 <span />
               </div>
 
               {lines.map((line) => (
-                <div key={line.key} className="grid grid-cols-[1fr_100px_120px_auto] items-center gap-2">
+                <div key={line.key} className="grid grid-cols-[1fr_90px_110px_70px] items-center gap-2">
                   <Select
                     value={line.productId}
                     onValueChange={(value) => {
@@ -168,12 +196,12 @@ export function PurchaseOrderFormDialog({
                       });
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Product" />
+                    <SelectTrigger className="h-9 border-slate-200 bg-slate-50 text-xs">
+                      <SelectValue placeholder="Select product" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="border border-slate-200 bg-white shadow-card">
                       {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
+                        <SelectItem key={product.id} value={product.id} className="text-xs text-slate-700">
                           {product.name}
                         </SelectItem>
                       ))}
@@ -184,6 +212,8 @@ export function PurchaseOrderFormDialog({
                     type="number"
                     min="1"
                     step="1"
+                    placeholder="Qty"
+                    className="h-9 border-slate-200 bg-slate-50 text-center text-xs tabular-nums focus:bg-white"
                     value={line.quantity || ""}
                     onChange={(e) => updateLine(line.key, { quantity: Number(e.target.value) || 0 })}
                   />
@@ -192,6 +222,8 @@ export function PurchaseOrderFormDialog({
                     type="number"
                     min="0"
                     step="0.01"
+                    placeholder="0.00"
+                    className="h-9 border-slate-200 bg-slate-50 text-right text-xs tabular-nums focus:bg-white"
                     value={line.unitPrice || ""}
                     onChange={(e) => updateLine(line.key, { unitPrice: Number(e.target.value) || 0 })}
                   />
@@ -200,27 +232,59 @@ export function PurchaseOrderFormDialog({
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="h-9 text-xs text-slate-400 hover:bg-rose-50 hover:text-rose-600"
                     disabled={lines.length <= 1}
                     onClick={() => removeLine(line.key)}
                   >
-                    Remove
+                    Delete
                   </Button>
                 </div>
               ))}
 
-              <Button type="button" variant="outline" size="sm" className="w-fit" onClick={addLine}>
-                Add Line
-              </Button>
+              <div className="flex items-center justify-between pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 border-slate-200 text-xs font-medium"
+                  onClick={addLine}
+                >
+                  + Add Line Item
+                </Button>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-slate-500">Estimated Total:</span>
+                  <span className="font-display text-sm font-bold tabular-nums text-slate-900">
+                    ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <p className="text-sm font-medium">Total: {total.toFixed(2)}</p>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <div className="rounded-md border border-rose-200 bg-rose-50 p-2.5 text-xs font-medium text-rose-700">
+                {error}
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={saving || !vendorId}>
-              {saving ? "Saving..." : "Save"}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 border-slate-200 text-xs font-medium"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving || !vendorId}
+              className="ml-2 h-9 bg-slate-900 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+            >
+              {saving ? "Saving..." : editingOrder ? "Save Changes" : "Create Order"}
             </Button>
           </DialogFooter>
         </form>

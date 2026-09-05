@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PurchaseOrderFormDialog } from "@/components/purchases/PurchaseOrderFormDialog";
 import { convertPurchaseOrderToBill, listPurchaseOrders, type PurchaseOrder } from "@/lib/api/purchase-orders";
+import { Plus, ShoppingCart, ArrowRight } from "lucide-react";
 
 interface PurchaseOrderWithVendor extends PurchaseOrder {
   vendor?: { name: string };
@@ -56,66 +57,93 @@ export function PurchaseOrdersPage() {
   }, [purchaseOrders, search]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Purchase Orders</h1>
-        <Button onClick={() => setFormOpen(true)}>New Purchase Order</Button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <SearchBar onSearch={setSearch} placeholder="Search by ref, vendor, or status — press Enter" />
+        <Button
+          onClick={() => setFormOpen(true)}
+          size="sm"
+          className="h-9 gap-1.5 bg-slate-900 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New Purchase Order
+        </Button>
       </div>
-
-      <Input
-        placeholder="Search by ref, vendor, or status..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="max-w-sm"
-      />
 
       <PurchaseOrderFormDialog open={formOpen} onOpenChange={setFormOpen} onSaved={load} />
 
       {loading ? (
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="py-12 text-center text-xs text-slate-400">Loading purchase orders...</div>
       ) : filtered.length === 0 ? (
-        <p className="text-muted-foreground">No purchase orders found.</p>
+        <div className="rounded-lg border border-dashed border-slate-200 bg-white p-12 text-center shadow-card">
+          <ShoppingCart className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+          <p className="text-sm font-semibold text-slate-900">No purchase orders found</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Create a procurement order with a registered supplier — it stays editable until you convert it to a bill.
+          </p>
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Ref</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((po) => (
-              <TableRow key={po.id} className="cursor-pointer" onClick={() => navigate(`/purchase-orders/${po.id}`)}>
-                <TableCell className="font-medium">{po.refNumber}</TableCell>
-                <TableCell>{po.vendor?.name ?? po.vendorId}</TableCell>
-                <TableCell>{new Date(po.date).toLocaleDateString()}</TableCell>
-                <TableCell>{total(po).toFixed(2)}</TableCell>
-                <TableCell>
-                  <Badge variant={po.status === "Billed" ? "default" : "outline"}>{po.status}</Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  {po.status === "Draft" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={converting === po.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleConvert(po.id);
-                      }}
-                    >
-                      {converting === po.id ? "Converting..." : "Convert to Bill"}
-                    </Button>
-                  )}
-                </TableCell>
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card">
+          <Table>
+            <TableHeader className="bg-slate-50">
+              <TableRow className="border-slate-200 hover:bg-transparent">
+                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Reference</TableHead>
+                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Vendor Entity</TableHead>
+                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Order Date</TableHead>
+                <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Total Order Amount</TableHead>
+                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Order Status</TableHead>
+                <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((po) => (
+                <TableRow
+                  key={po.id}
+                  className="cursor-pointer border-slate-100 transition-colors hover:bg-slate-50"
+                  onClick={() => navigate(`/purchase-orders/${po.id}`)}
+                >
+                  <TableCell className="px-4 py-3 font-mono text-xs font-medium text-slate-900">{po.refNumber}</TableCell>
+                  <TableCell className="px-4 py-3 text-xs text-slate-900">{po.vendor?.name ?? po.vendorId}</TableCell>
+                  <TableCell className="px-4 py-3 font-mono text-xs text-slate-600">
+                    {new Date(po.date).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-900">
+                    ₹{total(po).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-medium ${
+                        po.status === "Billed"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-amber-200 bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      {po.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right">
+                    {po.status === "Draft" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={converting === po.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleConvert(po.id);
+                        }}
+                        className="h-7 gap-1 px-2 text-xs font-medium text-slate-900 hover:bg-slate-100"
+                      >
+                        {converting === po.id ? "Converting..." : "Convert to Bill"}
+                        <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

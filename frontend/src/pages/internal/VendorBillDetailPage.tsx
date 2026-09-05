@@ -25,39 +25,72 @@ export function VendorBillDetailPage() {
   }, [id]);
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading...</p>;
+    return (
+      <div className="py-16 text-center text-xs text-slate-500 bg-white rounded-lg border border-slate-200 shadow-card max-w-4xl">
+        <div className="inline-block w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin mb-3"></div>
+        <p>Loading bill details...</p>
+      </div>
+    );
   }
   if (!bill) {
-    return <p className="text-destructive">Bill not found.</p>;
+    return (
+      <div className="p-8 text-center rounded-lg border border-rose-200 bg-rose-50/50 text-rose-700 max-w-4xl">
+        <p className="text-sm font-semibold">Vendor Bill Not Found</p>
+        <p className="text-xs mt-1">The requested bill could not be located or may have been removed.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Vendor Bill {bill.refNumber}</h1>
-
-      <div className="flex items-center justify-between">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Date</p>
-            <p className="text-sm font-medium">{new Date(bill.date).toLocaleDateString()}</p>
+    <div className="space-y-6 max-w-4xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payables</span>
+            <span className="text-xs text-slate-400">•</span>
+            <span className="text-xs font-mono text-slate-500">#{bill.id.substring(0, 8)}</span>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Amount</p>
-            <p className="text-sm font-medium">{bill.amount.toFixed(2)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Amount Due</p>
-            <p className="text-sm font-medium">{bill.amountDue.toFixed(2)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Status</p>
-            <Badge variant={bill.status === "Paid" ? "default" : "outline"}>{bill.status}</Badge>
-          </div>
+          <h1 className="text-xl font-bold font-display tracking-tight text-slate-900">Vendor Bill Details</h1>
         </div>
 
         {bill.status !== "Paid" && (
-          <Button onClick={() => setPaymentDialogOpen(true)}>Record Payment</Button>
+          <Button onClick={() => setPaymentDialogOpen(true)} size="sm" className="h-9 px-4 gap-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle transition-colors">
+            Record Payment
+          </Button>
         )}
+      </div>
+
+      {/* Bill Overview Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Bill Date</p>
+          <p className="text-sm font-semibold text-slate-900 mt-1">{new Date(bill.date).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}</p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Amount</p>
+          <p className="text-base font-bold font-display text-slate-900 mt-1 tabular-nums">₹{bill.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Amount Due</p>
+          <p className={`text-base font-bold font-display mt-1 tabular-nums ${bill.amountDue > 0 ? "text-rose-600" : "text-emerald-700"}`}>₹{bill.amountDue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Payment Status</p>
+          <div className="mt-1.5">
+            <Badge
+              variant="outline"
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                bill.status === "Paid"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : bill.status === "Partial"
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : "bg-rose-50 text-rose-700 border-rose-200"
+              }`}
+            >
+              {bill.status}
+            </Badge>
+          </div>
+        </div>
       </div>
 
       <RecordPaymentDialog
@@ -68,31 +101,31 @@ export function VendorBillDetailPage() {
         onRecorded={load}
       />
 
-      <div>
-        <h2 className="mb-2 text-lg font-medium">Payments</h2>
+      <div className="space-y-3">
+        <h2 className="text-sm font-bold font-display text-slate-900">Payment History &amp; Settlements</h2>
         {bill.payments.length === 0 ? (
-          <p className="text-muted-foreground">No payments recorded yet.</p>
+          <div className="p-8 text-center rounded-lg border border-dashed border-slate-300 bg-white shadow-card">
+            <p className="text-xs text-slate-500">No payments recorded yet for this bill.</p>
+          </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Receipt</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Paid From</TableHead>
-                <TableHead>Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bill.payments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell className="font-medium">{payment.refNumber}</TableCell>
-                  <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{payment.paymentAccount?.name ?? payment.paymentAccountId}</TableCell>
-                  <TableCell>{payment.amount.toFixed(2)}</TableCell>
+          <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-card">
+            <Table>
+              <TableHeader className="bg-slate-50 border-b border-slate-200">
+                <TableRow className="border-slate-200 hover:bg-transparent">
+                  <TableHead className="text-xs font-semibold text-slate-700 h-10 px-4">Payment Date</TableHead>
+                  <TableHead className="text-right text-xs font-semibold text-slate-700 h-10 px-4">Amount Paid</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {bill.payments.map((payment) => (
+                  <TableRow key={payment.id} className="border-slate-100 hover:bg-slate-50/80 transition-colors">
+                    <TableCell className="text-xs text-slate-900 font-medium px-4 py-3">{new Date(payment.date).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}</TableCell>
+                    <TableCell className="text-right text-xs font-bold text-emerald-700 tabular-nums px-4 py-3">₹{payment.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
     </div>
