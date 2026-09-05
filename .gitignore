@@ -1,0 +1,25 @@
+node_modules/
+
+# env
+.env
+.env.*.local
+
+# build output
+/frontend/dist
+/backend/dist
+/shared/dist
+
+# prisma
+backend/prisma/*.db
+
+# logs
+*.log
+npm-debug.log*
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# tsbuildinfo
+*.tsbuildinfo
