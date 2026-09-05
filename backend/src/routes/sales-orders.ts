@@ -1,7 +1,11 @@
 import { Router } from "express";
+import { getJournalByName, postCustomerInvoice } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
 
 const router = Router();
+
+// Flat rate applied to every generated invoice's base amount.
+const GST_RATE = 0.18;
 
 interface LineInput {
   productId: string;
@@ -59,6 +63,68 @@ router.post("/", async (req, res) => {
       quantity: line.quantity.toNumber(),
       unitPrice: line.unitPrice.toNumber(),
     })),
+  });
+});
+
+// Converts a Draft SO into a CustomerInvoice (base amount + 18% GST) and immediately
+// posts it (Debit Debtors / Credit Sales Income + Credit Tax Payable) via
+// postCustomerInvoice() — never bypass the engine here.
+router.post("/:id/generate-invoice", async (req, res) => {
+  const salesOrder = await prisma.salesOrder.findUnique({
+    where: { id: req.params.id },
+    include: { lines: true },
+  });
+
+  if (!salesOrder) {
+    return res.status(404).json({ error: "sales order not found" });
+  }
+  if (salesOrder.status === "Invoiced") {
+    return res.status(400).json({ error: "sales order has already been invoiced" });
+  }
+
+  const baseAmount = salesOrder.lines.reduce(
+    (sum, line) => sum + line.quantity.toNumber() * line.unitPrice.toNumber(),
+    0,
+  );
+  const taxAmount = Math.round(baseAmount * GST_RATE * 100) / 100;
+  const amount = baseAmount + taxAmount;
+
+  const invoice = await prisma.customerInvoice.create({
+    data: {
+      salesOrderId: salesOrder.id,
+      customerId: salesOrder.customerId,
+      date: new Date(),
+      baseAmount,
+      taxAmount,
+      amount,
+      amountDue: amount,
+      status: "Draft",
+    },
+  });
+
+  const salesJournal = await getJournalByName("Sales Journal");
+
+  await postCustomerInvoice({
+    journalId: salesJournal.id,
+    customerId: salesOrder.customerId,
+    baseAmount,
+    taxAmount,
+    date: invoice.date,
+    reference: `SO ${salesOrder.id}`,
+    sourceId: invoice.id,
+  });
+
+  await prisma.salesOrder.update({
+    where: { id: salesOrder.id },
+    data: { status: "Invoiced" },
+  });
+
+  res.status(201).json({
+    ...invoice,
+    baseAmount: invoice.baseAmount.toNumber(),
+    taxAmount: invoice.taxAmount.toNumber(),
+    amount: invoice.amount.toNumber(),
+    amountDue: invoice.amountDue.toNumber(),
   });
 });
 
