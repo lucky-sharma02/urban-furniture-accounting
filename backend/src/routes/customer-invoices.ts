@@ -10,6 +10,46 @@ function toCents(amount: number): number {
   return Math.round(amount * 100);
 }
 
+router.get("/", async (_req, res) => {
+  const invoices = await prisma.customerInvoice.findMany({
+    include: { customer: true },
+    orderBy: { date: "desc" },
+  });
+
+  res.json(
+    invoices.map((invoice) => ({
+      ...invoice,
+      baseAmount: invoice.baseAmount.toNumber(),
+      taxAmount: invoice.taxAmount.toNumber(),
+      amount: invoice.amount.toNumber(),
+      amountDue: invoice.amountDue.toNumber(),
+    })),
+  );
+});
+
+router.get("/:id", async (req, res) => {
+  const invoice = await prisma.customerInvoice.findUnique({
+    where: { id: req.params.id },
+    include: { customer: true, payments: true },
+  });
+
+  if (!invoice) {
+    return res.status(404).json({ error: "customer invoice not found" });
+  }
+
+  res.json({
+    ...invoice,
+    baseAmount: invoice.baseAmount.toNumber(),
+    taxAmount: invoice.taxAmount.toNumber(),
+    amount: invoice.amount.toNumber(),
+    amountDue: invoice.amountDue.toNumber(),
+    payments: invoice.payments.map((payment) => ({
+      ...payment,
+      amount: payment.amount.toNumber(),
+    })),
+  });
+});
+
 // Records a (possibly partial) payment against an invoice, recalculates amountDue,
 // transitions status Draft -> Partial -> Paid, and posts the payment (Debit Bank or
 // Cash / Credit Debtors) via postCustomerPayment().

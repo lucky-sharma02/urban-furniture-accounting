@@ -26,6 +26,51 @@ function isValidLine(line: unknown): line is LineInput {
   );
 }
 
+router.get("/", async (_req, res) => {
+  const salesOrders = await prisma.salesOrder.findMany({
+    include: { lines: true, customer: true },
+    orderBy: { date: "desc" },
+  });
+
+  res.json(
+    salesOrders.map((so) => ({
+      ...so,
+      lines: so.lines.map((line) => ({
+        ...line,
+        quantity: line.quantity.toNumber(),
+        unitPrice: line.unitPrice.toNumber(),
+      })),
+    })),
+  );
+});
+
+router.get("/:id", async (req, res) => {
+  const salesOrder = await prisma.salesOrder.findUnique({
+    where: { id: req.params.id },
+    include: { lines: true, customer: true, invoices: true },
+  });
+
+  if (!salesOrder) {
+    return res.status(404).json({ error: "sales order not found" });
+  }
+
+  res.json({
+    ...salesOrder,
+    lines: salesOrder.lines.map((line) => ({
+      ...line,
+      quantity: line.quantity.toNumber(),
+      unitPrice: line.unitPrice.toNumber(),
+    })),
+    invoices: salesOrder.invoices.map((invoice) => ({
+      ...invoice,
+      baseAmount: invoice.baseAmount.toNumber(),
+      taxAmount: invoice.taxAmount.toNumber(),
+      amount: invoice.amount.toNumber(),
+      amountDue: invoice.amountDue.toNumber(),
+    })),
+  });
+});
+
 router.post("/", async (req, res) => {
   const { customerId, date, lines } = req.body;
 
