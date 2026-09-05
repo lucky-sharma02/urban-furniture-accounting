@@ -33,7 +33,7 @@ export function VendorBillDetailPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Vendor Bill</h1>
+      <h1 className="text-2xl font-semibold">Vendor Bill {bill.refNumber}</h1>
 
       <div className="flex items-center justify-between">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -76,14 +76,18 @@ export function VendorBillDetailPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Receipt</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Paid From</TableHead>
                 <TableHead>Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {bill.payments.map((payment) => (
                 <TableRow key={payment.id}>
+                  <TableCell className="font-medium">{payment.refNumber}</TableCell>
                   <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{payment.paymentAccount?.name ?? payment.paymentAccountId}</TableCell>
                   <TableCell>{payment.amount.toFixed(2)}</TableCell>
                 </TableRow>
               ))}

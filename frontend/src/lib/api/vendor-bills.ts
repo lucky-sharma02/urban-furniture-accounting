@@ -3,15 +3,18 @@ import { apiFetch } from "../api";
 
 export interface Payment {
   id: string;
+  refNumber: string;
   vendorBillId: string;
   amount: number;
   date: string;
   paymentAccountId: string;
+  paymentAccount?: { name: string };
   createdAt: string;
 }
 
 export interface VendorBill {
   id: string;
+  refNumber: string;
   purchaseOrderId: string | null;
   vendorId: string;
   date: string;

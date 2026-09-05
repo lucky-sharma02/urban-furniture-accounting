@@ -1,4 +1,16 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+
+// For binary responses (PDF export) — apiFetch always assumes JSON.
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    throw new Error(`API request failed: ${res.status} ${res.statusText}`);
+  }
+  return res.blob();
+}
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem("token");

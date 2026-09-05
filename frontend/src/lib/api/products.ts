@@ -2,6 +2,7 @@ import { apiFetch } from "../api";
 
 export interface Product {
   id: string;
+  refNumber: string;
   name: string;
   category: string;
   salesPrice: number;

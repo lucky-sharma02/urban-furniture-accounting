@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ContactFormDialog } from "@/components/master-data/ContactFormDialog";
 import { ContactKanbanBoard } from "@/components/master-data/ContactKanbanBoard";
@@ -14,6 +15,7 @@ export function ContactsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | undefined>(undefined);
   const [view, setView] = useState<ViewMode>("list");
+  const [search, setSearch] = useState("");
 
   async function load() {
     setLoading(true);
@@ -41,6 +43,17 @@ export function ContactsPage() {
     setFormOpen(true);
   }
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(q) ||
+        contact.email.toLowerCase().includes(q) ||
+        contact.type.toLowerCase().includes(q),
+    );
+  }, [contacts, search]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -64,6 +77,13 @@ export function ContactsPage() {
         </div>
       </div>
 
+      <Input
+        placeholder="Search by name, email, or type..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-sm"
+      />
+
       <ContactFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -73,10 +93,10 @@ export function ContactsPage() {
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
-      ) : contacts.length === 0 ? (
-        <p className="text-muted-foreground">No contacts yet.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-muted-foreground">No contacts found.</p>
       ) : view === "kanban" ? (
-        <ContactKanbanBoard contacts={contacts} onEdit={openEditForm} onArchive={handleArchive} />
+        <ContactKanbanBoard contacts={filtered} onEdit={openEditForm} onArchive={handleArchive} />
       ) : (
         <Table>
           <TableHeader>
@@ -89,7 +109,7 @@ export function ContactsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {contacts.map((contact) => (
+            {filtered.map((contact) => (
               <TableRow key={contact.id}>
                 <TableCell className="font-medium">{contact.name}</TableCell>
                 <TableCell>
