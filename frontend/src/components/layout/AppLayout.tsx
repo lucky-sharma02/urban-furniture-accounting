@@ -7,6 +7,7 @@ const navItems = [
   { to: "/products", label: "Products" },
   { to: "/accounts", label: "Chart of Accounts" },
   { to: "/journals", label: "Journals" },
+  { to: "/post-entry", label: "Post Entry" },
 ];
 
 export function AppLayout() {
