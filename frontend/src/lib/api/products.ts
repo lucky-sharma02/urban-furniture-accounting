@@ -1,0 +1,35 @@
+import { apiFetch } from "../api";
+
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  salesPrice: number;
+  purchasePrice: number;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductInput {
+  name: string;
+  category: string;
+  salesPrice: number;
+  purchasePrice: number;
+}
+
+export function listProducts(includeArchived = false) {
+  return apiFetch<Product[]>(`/products${includeArchived ? "?includeArchived=true" : ""}`);
+}
+
+export function createProduct(input: ProductInput) {
+  return apiFetch<Product>("/products", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function updateProduct(id: string, input: Partial<ProductInput>) {
+  return apiFetch<Product>(`/products/${id}`, { method: "PUT", body: JSON.stringify(input) });
+}
+
+export function archiveProduct(id: string) {
+  return apiFetch<Product>(`/products/${id}/archive`, { method: "PATCH" });
+}

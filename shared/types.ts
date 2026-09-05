@@ -11,6 +11,10 @@ export type AccountType =
   | "Expenses"
   | "OtherExpenses";
 
+export type ContactType = "Vendor" | "Customer" | "Both";
+
+export type JournalType = "Sales" | "Purchase" | "Bank" | "Cash";
+
 export type NormalBalanceSide = "Debit" | "Credit";
 
 // ASSET/EXPENSE/OtherExpenses/Bank/Cash -> Debit; LIABILITY/CAPITAL/INCOME -> Credit
