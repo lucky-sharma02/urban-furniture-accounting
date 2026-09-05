@@ -89,23 +89,25 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl bg-white border border-slate-200 shadow-elevated max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>New Purchase Order</DialogTitle>
+            <DialogTitle className="text-base font-bold font-display text-slate-900">
+              Create Purchase Order
+            </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="vendor">Vendor</Label>
+                <Label htmlFor="vendor" className="text-xs font-semibold text-slate-700">Vendor / Supplier</Label>
                 <Select value={vendorId} onValueChange={setVendorId}>
-                  <SelectTrigger id="vendor">
+                  <SelectTrigger id="vendor" className="h-9 text-xs bg-slate-50 border-slate-200">
                     <SelectValue placeholder="Select a vendor" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white border border-slate-200 shadow-card">
                     {vendors.map((vendor) => (
-                      <SelectItem key={vendor.id} value={vendor.id}>
+                      <SelectItem key={vendor.id} value={vendor.id} className="text-xs text-slate-700">
                         {vendor.name}
                       </SelectItem>
                     ))}
@@ -114,28 +116,39 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+                <Label htmlFor="date" className="text-xs font-semibold text-slate-700">Order Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  required
+                  className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-[1fr_100px_120px_auto] gap-2 px-1 text-xs font-medium text-muted-foreground">
-                <span>Product</span>
-                <span>Qty</span>
-                <span>Unit Price</span>
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold font-display text-slate-900 uppercase tracking-wider">Order Line Items</Label>
+              </div>
+
+              <div className="grid grid-cols-[1fr_90px_110px_70px] gap-2 px-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <span>Product Item</span>
+                <span className="text-center">Qty</span>
+                <span className="text-right">Unit Price</span>
                 <span />
               </div>
 
               {lines.map((line) => (
-                <div key={line.key} className="grid grid-cols-[1fr_100px_120px_auto] items-center gap-2">
+                <div key={line.key} className="grid grid-cols-[1fr_90px_110px_70px] items-center gap-2">
                   <Select value={line.productId} onValueChange={(value) => updateLine(line.key, { productId: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Product" />
+                    <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-200">
+                      <SelectValue placeholder="Select product" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white border border-slate-200 shadow-card">
                       {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
+                        <SelectItem key={product.id} value={product.id} className="text-xs text-slate-700">
                           {product.name}
                         </SelectItem>
                       ))}
@@ -146,6 +159,8 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
                     type="number"
                     min="1"
                     step="1"
+                    placeholder="Qty"
+                    className="h-9 text-xs text-center bg-slate-50 border-slate-200 focus:bg-white tabular-nums"
                     value={line.quantity || ""}
                     onChange={(e) => updateLine(line.key, { quantity: Number(e.target.value) || 0 })}
                   />
@@ -154,6 +169,8 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
                     type="number"
                     min="0"
                     step="0.01"
+                    placeholder="0.00"
+                    className="h-9 text-xs text-right bg-slate-50 border-slate-200 focus:bg-white tabular-nums"
                     value={line.unitPrice || ""}
                     onChange={(e) => updateLine(line.key, { unitPrice: Number(e.target.value) || 0 })}
                   />
@@ -162,27 +179,53 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="h-9 text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                     disabled={lines.length <= 1}
                     onClick={() => removeLine(line.key)}
                   >
-                    Remove
+                    Delete
                   </Button>
                 </div>
               ))}
 
-              <Button type="button" variant="outline" size="sm" className="w-fit" onClick={addLine}>
-                Add Line
-              </Button>
+              <div className="flex items-center justify-between pt-2">
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs font-medium border-slate-200" onClick={addLine}>
+                  + Add Line Item
+                </Button>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500 font-medium">Estimated Total:</span>
+                  <span className="text-sm font-bold font-display text-slate-900 tabular-nums">
+                    ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <p className="text-sm font-medium">Total: {total.toFixed(2)}</p>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {error}
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={saving || !vendorId}>
-              {saving ? "Saving..." : "Save"}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs font-medium border-slate-200"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving || !vendorId}
+              className="h-9 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle ml-2"
+            >
+              {saving ? "Creating Order..." : "Create Order"}
             </Button>
           </DialogFooter>
         </form>

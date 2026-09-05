@@ -68,66 +68,95 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md bg-white border border-slate-200 shadow-elevated">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{product ? "Edit Product" : "New Product"}</DialogTitle>
+            <DialogTitle className="text-base font-bold font-display text-slate-900">
+              {product ? "Edit Furniture SKU / Item" : "New Furniture Product"}
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-4">
+          <div className="flex flex-col gap-3.5 py-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name" className="text-xs font-semibold text-slate-700">Product Name / Design</Label>
               <Input
                 id="name"
                 required
+                placeholder="e.g. Ergonomic Solid Oak Armchair"
+                className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category" className="text-xs font-semibold text-slate-700">Category</Label>
               <Input
                 id="category"
                 required
-                placeholder="Type a new or existing category"
+                placeholder="e.g. Seating, Tables, Storage"
+                className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="salesPrice">Sales Price</Label>
-              <Input
-                id="salesPrice"
-                type="number"
-                min="0"
-                step="0.01"
-                required
-                value={form.salesPrice}
-                onChange={(e) => setForm({ ...form, salesPrice: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="salesPrice" className="text-xs font-semibold text-slate-700">Sales Price (₹)</Label>
+                <Input
+                  id="salesPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                  className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white tabular-nums"
+                  value={form.salesPrice}
+                  onChange={(e) => setForm({ ...form, salesPrice: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="purchasePrice" className="text-xs font-semibold text-slate-700">Purchase Cost (₹)</Label>
+                <Input
+                  id="purchasePrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                  className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white tabular-nums"
+                  value={form.purchasePrice}
+                  onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })}
+                />
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="purchasePrice">Purchase Price</Label>
-              <Input
-                id="purchasePrice"
-                type="number"
-                min="0"
-                step="0.01"
-                required
-                value={form.purchasePrice}
-                onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })}
-              />
-            </div>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+              <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {error}
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs font-medium border-slate-200"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving}
+              className="h-9 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle ml-2"
+            >
+              {saving ? "Saving..." : product ? "Update Product" : "Create Product"}
             </Button>
           </DialogFooter>
         </form>

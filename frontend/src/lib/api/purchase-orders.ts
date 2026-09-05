@@ -1,4 +1,4 @@
-import type { PurchaseOrderStatus } from "@urban-furniture/shared";
+export type PurchaseOrderStatus = "Draft" | "Confirmed" | "Billed" | "Cancelled";
 import { apiFetch } from "../api";
 import type { VendorBill } from "./vendor-bills";
 

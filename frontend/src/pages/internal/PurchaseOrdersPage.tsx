@@ -43,54 +43,74 @@ export function PurchaseOrdersPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Purchase Orders</h1>
-        <Button onClick={() => setFormOpen(true)}>New Purchase Order</Button>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 font-display">Purchase Orders</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Manage supplier procurement orders, track status & convert to vendor bills.</p>
+        </div>
+        <Button onClick={() => setFormOpen(true)} size="sm" className="h-9 gap-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle">
+          New Purchase Order
+        </Button>
       </div>
 
       <PurchaseOrderFormDialog open={formOpen} onOpenChange={setFormOpen} onSaved={load} />
 
       {loading ? (
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="py-12 text-center text-xs text-slate-400">Loading purchase orders...</div>
       ) : purchaseOrders.length === 0 ? (
-        <p className="text-muted-foreground">No purchase orders yet.</p>
+        <div className="p-12 text-center rounded-lg border border-dashed border-slate-200 bg-white shadow-card">
+          <p className="text-sm font-semibold text-slate-900">No purchase orders found</p>
+          <p className="text-xs text-slate-500 mt-1">Create your first procurement order with a registered supplier vendor.</p>
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {purchaseOrders.map((po) => (
-              <TableRow key={po.id}>
-                <TableCell className="font-medium">{po.vendor?.name ?? po.vendorId}</TableCell>
-                <TableCell>{new Date(po.date).toLocaleDateString()}</TableCell>
-                <TableCell>{total(po).toFixed(2)}</TableCell>
-                <TableCell>
-                  <Badge variant={po.status === "Billed" ? "default" : "outline"}>{po.status}</Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  {po.status === "Draft" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={converting === po.id}
-                      onClick={() => handleConvert(po.id)}
-                    >
-                      {converting === po.id ? "Converting..." : "Convert to Bill"}
-                    </Button>
-                  )}
-                </TableCell>
+        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-card">
+          <Table>
+            <TableHeader className="bg-slate-50">
+              <TableRow className="border-slate-200">
+                <TableHead className="text-xs font-semibold text-slate-700">Vendor Entity</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700">Order Date</TableHead>
+                <TableHead className="text-right text-xs font-semibold text-slate-700">Total Order Amount</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700">Order Status</TableHead>
+                <TableHead className="text-right text-xs font-semibold text-slate-700">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {purchaseOrders.map((po) => (
+                <TableRow key={po.id} className="border-slate-100 hover:bg-slate-50 transition-colors">
+                  <TableCell className="font-medium text-xs text-slate-900">{po.vendor?.name ?? po.vendorId}</TableCell>
+                  <TableCell className="text-xs text-slate-600 font-mono">{new Date(po.date).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right text-xs font-semibold text-slate-900 tabular-nums">₹{total(po).toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-medium ${
+                        po.status === "Billed"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-amber-50 text-amber-800 border-amber-200"
+                      }`}
+                    >
+                      {po.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {po.status === "Draft" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={converting === po.id}
+                        onClick={() => handleConvert(po.id)}
+                        className="h-7 px-2 text-xs text-slate-900 font-medium hover:bg-slate-100"
+                      >
+                        {converting === po.id ? "Converting..." : "Convert to Bill →"}
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );
