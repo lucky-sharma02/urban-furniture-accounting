@@ -10,6 +10,8 @@ const navItems = [
   { to: "/post-entry", label: "Post Entry" },
   { to: "/purchase-orders", label: "Purchase Orders" },
   { to: "/vendor-bills", label: "Vendor Bills" },
+  { to: "/sales-orders", label: "Sales Orders" },
+  { to: "/customer-invoices", label: "Customer Invoices" },
 ];
 
 export function AppLayout() {
