@@ -8,6 +8,8 @@ const navItems = [
   { to: "/accounts", label: "Chart of Accounts" },
   { to: "/journals", label: "Journals" },
   { to: "/post-entry", label: "Post Entry" },
+  { to: "/purchase-orders", label: "Purchase Orders" },
+  { to: "/vendor-bills", label: "Vendor Bills" },
 ];
 
 export function AppLayout() {
