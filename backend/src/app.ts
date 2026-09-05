@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import accountsRouter from "./routes/accounts";
+import contactsRouter from "./routes/contacts";
 import journalsRouter from "./routes/journals";
 
 const app = express();
@@ -17,6 +18,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/accounts", accountsRouter);
+app.use("/contacts", contactsRouter);
 app.use("/journals", journalsRouter);
 
 export default app;
