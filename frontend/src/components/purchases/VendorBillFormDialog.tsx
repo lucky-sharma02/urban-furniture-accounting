@@ -1,4 +1,3 @@
-import type { JournalType } from "@urban-furniture/shared";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,41 +16,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createJournal, updateJournal, type Journal } from "@/lib/api/journals";
+import { listContacts, type Contact } from "@/lib/api/contacts";
+import { createVendorBill } from "@/lib/api/vendor-bills";
 
-const JOURNAL_TYPES: JournalType[] = ["Sales", "Purchase", "Bank", "Cash"];
-
-interface JournalFormDialogProps {
+interface VendorBillFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  journal?: Journal;
   onSaved: () => void;
 }
 
-const emptyForm = { name: "", type: "Sales" as JournalType };
-
-export function JournalFormDialog({ open, onOpenChange, journal, onSaved }: JournalFormDialogProps) {
-  const [form, setForm] = useState(emptyForm);
+export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBillFormDialogProps) {
+  const [vendors, setVendors] = useState<Contact[]>([]);
+  const [vendorId, setVendorId] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setForm(journal ? { name: journal.name, type: journal.type } : emptyForm);
+      listContacts().then((contacts) => setVendors(contacts.filter((c) => c.type !== "Customer")));
+      setVendorId("");
+      setDate(new Date().toISOString().slice(0, 10));
+      setAmount("");
       setError(null);
     }
-  }, [open, journal]);
+  }, [open]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      if (journal) {
-        await updateJournal(journal.id, form);
-      } else {
-        await createJournal(form);
-      }
+      await createVendorBill({ vendorId, date, amount: Number(amount) });
       onSaved();
       onOpenChange(false);
     } catch (err) {
@@ -67,37 +64,52 @@ export function JournalFormDialog({ open, onOpenChange, journal, onSaved }: Jour
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-base font-bold font-display text-slate-900">
-              {journal ? "Edit Accounting Journal" : "New Accounting Journal"}
+              New Vendor Bill
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-3.5 py-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name" className="text-xs font-semibold text-slate-700">Journal Name</Label>
-              <Input
-                id="name"
-                required
-                placeholder="e.g. Primary Commercial Sales"
-                className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="type" className="text-xs font-semibold text-slate-700">Journal Book Type</Label>
-              <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value as JournalType })}>
-                <SelectTrigger id="type" className="h-9 text-xs bg-slate-50 border-slate-200">
-                  <SelectValue />
+              <Label htmlFor="vendor" className="text-xs font-semibold text-slate-700">Vendor / Supplier</Label>
+              <Select value={vendorId} onValueChange={setVendorId}>
+                <SelectTrigger id="vendor" className="h-9 text-xs bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="Select a vendor" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border border-slate-200 shadow-card">
-                  {JOURNAL_TYPES.map((type) => (
-                    <SelectItem key={type} value={type} className="text-xs text-slate-700">
-                      {type}
+                  {vendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id} className="text-xs text-slate-700">
+                      {vendor.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="date" className="text-xs font-semibold text-slate-700">Bill Date</Label>
+              <Input
+                id="date"
+                type="date"
+                required
+                className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="amount" className="text-xs font-semibold text-slate-700">Bill Amount (₹)</Label>
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                placeholder="0.00"
+                className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white tabular-nums"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
             </div>
 
             {error && (
@@ -120,10 +132,10 @@ export function JournalFormDialog({ open, onOpenChange, journal, onSaved }: Jour
             <Button
               type="submit"
               size="sm"
-              disabled={saving}
+              disabled={saving || !vendorId}
               className="h-9 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle ml-2"
             >
-              {saving ? "Saving..." : journal ? "Update Journal" : "Create Journal"}
+              {saving ? "Saving Bill..." : "Record Bill"}
             </Button>
           </DialogFooter>
         </form>
