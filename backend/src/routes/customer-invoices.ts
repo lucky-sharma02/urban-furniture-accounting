@@ -1,0 +1,82 @@
+import { Router } from "express";
+import { getJournalByName, postCustomerPayment } from "../lib/journal-engine";
+import { prisma } from "../lib/prisma";
+
+const router = Router();
+
+// Rounds to cents before comparing so floating point noise never leaves an invoice
+// a fraction of a paisa short of "Paid" after repeated partial payments.
+function toCents(amount: number): number {
+  return Math.round(amount * 100);
+}
+
+// Records a (possibly partial) payment against an invoice, recalculates amountDue,
+// transitions status Draft -> Partial -> Paid, and posts the payment (Debit Bank or
+// Cash / Credit Debtors) via postCustomerPayment().
+router.post("/:id/payments", async (req, res) => {
+  const { amount, date, paymentAccountId } = req.body;
+
+  if (typeof amount !== "number" || amount <= 0) {
+    return res.status(400).json({ error: "amount must be a positive number" });
+  }
+  if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
+    return res.status(400).json({ error: "a valid date is required" });
+  }
+  if (typeof paymentAccountId !== "string" || paymentAccountId.length === 0) {
+    return res.status(400).json({ error: "paymentAccountId is required" });
+  }
+
+  const invoice = await prisma.customerInvoice.findUnique({ where: { id: req.params.id } });
+  if (!invoice) {
+    return res.status(404).json({ error: "customer invoice not found" });
+  }
+
+  const amountDue = invoice.amountDue.toNumber();
+  if (toCents(amount) > toCents(amountDue)) {
+    return res.status(400).json({ error: `payment of ${amount} exceeds amount due of ${amountDue}` });
+  }
+
+  const paymentDate = new Date(date);
+
+  const payment = await prisma.payment.create({
+    data: {
+      customerInvoiceId: invoice.id,
+      amount,
+      date: paymentDate,
+      paymentAccountId,
+    },
+  });
+
+  const newAmountDue = Math.max(0, toCents(amountDue) - toCents(amount)) / 100;
+  const newStatus = newAmountDue === 0 ? "Paid" : "Partial";
+
+  const updatedInvoice = await prisma.customerInvoice.update({
+    where: { id: invoice.id },
+    data: { amountDue: newAmountDue, status: newStatus },
+  });
+
+  const salesJournal = await getJournalByName("Sales Journal");
+
+  await postCustomerPayment({
+    journalId: salesJournal.id,
+    customerId: invoice.customerId,
+    amount,
+    date: paymentDate,
+    reference: `Payment for invoice ${invoice.id}`,
+    sourceId: payment.id,
+    paymentAccountId,
+  });
+
+  res.status(201).json({
+    payment: { ...payment, amount: payment.amount.toNumber() },
+    customerInvoice: {
+      ...updatedInvoice,
+      baseAmount: updatedInvoice.baseAmount.toNumber(),
+      taxAmount: updatedInvoice.taxAmount.toNumber(),
+      amount: updatedInvoice.amount.toNumber(),
+      amountDue: updatedInvoice.amountDue.toNumber(),
+    },
+  });
+});
+
+export default router;
