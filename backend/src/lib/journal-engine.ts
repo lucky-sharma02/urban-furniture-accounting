@@ -118,3 +118,32 @@ export async function postVendorBill(input: PostVendorBillInput) {
     ],
   });
 }
+
+export interface PostVendorPaymentInput {
+  journalId: string;
+  vendorId: string;
+  amount: number;
+  date: Date;
+  reference?: string;
+  sourceId: string;
+  // Bank or Cash account id — which one was actually used is a runtime choice,
+  // not fixed business logic, so the caller resolves it (unlike Creditors below).
+  paymentAccountId: string;
+}
+
+// Payment to Vendor: Debit Creditors, Credit Bank/Cash.
+export async function postVendorPayment(input: PostVendorPaymentInput) {
+  const creditors = await getAccountByName("Creditors");
+
+  return postJournalEntry({
+    journalId: input.journalId,
+    date: input.date,
+    reference: input.reference,
+    sourceType: "VendorPayment",
+    sourceId: input.sourceId,
+    lines: [
+      { accountId: creditors.id, partnerId: input.vendorId, debit: input.amount, credit: 0 },
+      { accountId: input.paymentAccountId, partnerId: input.vendorId, debit: 0, credit: input.amount },
+    ],
+  });
+}
