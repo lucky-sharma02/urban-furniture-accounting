@@ -7,4 +7,68 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Models added starting M1 (Contact, Product, Account, Journal, ...).
+// AccountType mirrors shared/types.ts AccountType — keep both in sync.
+enum AccountType {
+  Asset
+  Liability
+  Bank
+  Capital
+  Cash
+  Income
+  Expenses
+  OtherExpenses
+}
+
+enum ContactType {
+  Vendor
+  Customer
+  Both
+}
+
+enum JournalType {
+  Sales
+  Purchase
+  Bank
+  Cash
+}
+
+model Contact {
+  id         String      @id @default(cuid())
+  name       String
+  type       ContactType
+  email      String      @unique
+  phone      String?
+  address    String?
+  isArchived Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  category      String
+  salesPrice    Decimal  @db.Decimal(12, 2)
+  purchasePrice Decimal  @db.Decimal(12, 2)
+  isArchived    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Account {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  type       AccountType
+  isArchived Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Journal {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  type       JournalType
+  isArchived Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
