@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProductFormDialog } from "@/components/master-data/ProductFormDialog";
 import { archiveProduct, listProducts, type Product } from "@/lib/api/products";
@@ -10,6 +11,7 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+  const [search, setSearch] = useState("");
 
   async function load() {
     setLoading(true);
@@ -37,12 +39,30 @@ export function ProductsPage() {
     setFormOpen(true);
   }
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (product) =>
+        product.refNumber.toLowerCase().includes(q) ||
+        product.name.toLowerCase().includes(q) ||
+        product.category.toLowerCase().includes(q),
+    );
+  }, [products, search]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Products</h1>
         <Button onClick={openCreateForm}>New Product</Button>
       </div>
+
+      <Input
+        placeholder="Search by ref, name, or category..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-sm"
+      />
 
       <ProductFormDialog
         open={formOpen}
@@ -53,12 +73,13 @@ export function ProductsPage() {
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
-      ) : products.length === 0 ? (
-        <p className="text-muted-foreground">No products yet.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-muted-foreground">No products found.</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Ref</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Sales Price</TableHead>
@@ -67,9 +88,10 @@ export function ProductsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product) => (
+            {filtered.map((product) => (
               <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.name}</TableCell>
+                <TableCell className="font-medium">{product.refNumber}</TableCell>
+                <TableCell>{product.name}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{product.category}</Badge>
                 </TableCell>

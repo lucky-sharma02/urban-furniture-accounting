@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PurchaseOrderFormDialog } from "@/components/purchases/PurchaseOrderFormDialog";
 import { convertPurchaseOrderToBill, listPurchaseOrders, type PurchaseOrder } from "@/lib/api/purchase-orders";
@@ -16,6 +17,7 @@ export function PurchaseOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [converting, setConverting] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   async function load() {
     setLoading(true);
@@ -42,6 +44,17 @@ export function PurchaseOrdersPage() {
     }
   }
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return purchaseOrders;
+    return purchaseOrders.filter(
+      (po) =>
+        po.refNumber.toLowerCase().includes(q) ||
+        (po.vendor?.name ?? "").toLowerCase().includes(q) ||
+        po.status.toLowerCase().includes(q),
+    );
+  }, [purchaseOrders, search]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -49,16 +62,24 @@ export function PurchaseOrdersPage() {
         <Button onClick={() => setFormOpen(true)}>New Purchase Order</Button>
       </div>
 
+      <Input
+        placeholder="Search by ref, vendor, or status..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-sm"
+      />
+
       <PurchaseOrderFormDialog open={formOpen} onOpenChange={setFormOpen} onSaved={load} />
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
-      ) : purchaseOrders.length === 0 ? (
-        <p className="text-muted-foreground">No purchase orders yet.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-muted-foreground">No purchase orders found.</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Ref</TableHead>
               <TableHead>Vendor</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Total</TableHead>
@@ -67,9 +88,10 @@ export function PurchaseOrdersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {purchaseOrders.map((po) => (
-              <TableRow key={po.id}>
-                <TableCell className="font-medium">{po.vendor?.name ?? po.vendorId}</TableCell>
+            {filtered.map((po) => (
+              <TableRow key={po.id} className="cursor-pointer" onClick={() => navigate(`/purchase-orders/${po.id}`)}>
+                <TableCell className="font-medium">{po.refNumber}</TableCell>
+                <TableCell>{po.vendor?.name ?? po.vendorId}</TableCell>
                 <TableCell>{new Date(po.date).toLocaleDateString()}</TableCell>
                 <TableCell>{total(po).toFixed(2)}</TableCell>
                 <TableCell>
@@ -81,7 +103,10 @@ export function PurchaseOrdersPage() {
                       variant="ghost"
                       size="sm"
                       disabled={converting === po.id}
-                      onClick={() => handleConvert(po.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConvert(po.id);
+                      }}
                     >
                       {converting === po.id ? "Converting..." : "Convert to Bill"}
                     </Button>

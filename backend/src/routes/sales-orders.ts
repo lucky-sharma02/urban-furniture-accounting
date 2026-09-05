@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { formatRef } from "../lib/format-ref";
 import { getJournalByName, postCustomerInvoice } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
 
@@ -35,6 +36,7 @@ router.get("/", async (_req, res) => {
   res.json(
     salesOrders.map((so) => ({
       ...so,
+      refNumber: formatRef("SO", so.refNumber),
       lines: so.lines.map((line) => ({
         ...line,
         quantity: line.quantity.toNumber(),
@@ -47,7 +49,7 @@ router.get("/", async (_req, res) => {
 router.get("/:id", async (req, res) => {
   const salesOrder = await prisma.salesOrder.findUnique({
     where: { id: req.params.id },
-    include: { lines: true, customer: true, invoices: true },
+    include: { lines: { include: { product: true } }, customer: true, invoices: true },
   });
 
   if (!salesOrder) {
@@ -56,6 +58,7 @@ router.get("/:id", async (req, res) => {
 
   res.json({
     ...salesOrder,
+    refNumber: formatRef("SO", salesOrder.refNumber),
     lines: salesOrder.lines.map((line) => ({
       ...line,
       quantity: line.quantity.toNumber(),
@@ -63,6 +66,7 @@ router.get("/:id", async (req, res) => {
     })),
     invoices: salesOrder.invoices.map((invoice) => ({
       ...invoice,
+      refNumber: formatRef("INV", invoice.refNumber),
       baseAmount: invoice.baseAmount.toNumber(),
       taxAmount: invoice.taxAmount.toNumber(),
       amount: invoice.amount.toNumber(),
@@ -103,6 +107,62 @@ router.post("/", async (req, res) => {
 
   res.status(201).json({
     ...salesOrder,
+    refNumber: formatRef("SO", salesOrder.refNumber),
+    lines: salesOrder.lines.map((line) => ({
+      ...line,
+      quantity: line.quantity.toNumber(),
+      unitPrice: line.unitPrice.toNumber(),
+    })),
+  });
+});
+
+// Replaces customer/date/lines wholesale — only permitted while the SO is still Draft,
+// since an Invoiced SO has already generated a CustomerInvoice from its current line amounts.
+router.put("/:id", async (req, res) => {
+  const { customerId, date, lines } = req.body;
+
+  if (typeof customerId !== "string" || customerId.length === 0) {
+    return res.status(400).json({ error: "customerId is required" });
+  }
+  if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
+    return res.status(400).json({ error: "a valid date is required" });
+  }
+  if (!Array.isArray(lines) || lines.length === 0 || !lines.every(isValidLine)) {
+    return res.status(400).json({
+      error: "at least one line is required, each with productId, quantity, and unitPrice",
+    });
+  }
+
+  const existing = await prisma.salesOrder.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    return res.status(404).json({ error: "sales order not found" });
+  }
+  if (existing.status !== "Draft") {
+    return res.status(400).json({ error: "only a Draft sales order can be edited" });
+  }
+
+  const salesOrder = await prisma.$transaction(async (tx) => {
+    await tx.salesOrderLine.deleteMany({ where: { salesOrderId: existing.id } });
+    return tx.salesOrder.update({
+      where: { id: existing.id },
+      data: {
+        customerId,
+        date: new Date(date),
+        lines: {
+          create: lines.map((line: LineInput) => ({
+            productId: line.productId,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+          })),
+        },
+      },
+      include: { lines: true },
+    });
+  });
+
+  res.json({
+    ...salesOrder,
+    refNumber: formatRef("SO", salesOrder.refNumber),
     lines: salesOrder.lines.map((line) => ({
       ...line,
       quantity: line.quantity.toNumber(),
@@ -155,7 +215,7 @@ router.post("/:id/generate-invoice", async (req, res) => {
     baseAmount,
     taxAmount,
     date: invoice.date,
-    reference: `SO ${salesOrder.id}`,
+    reference: `SO ${formatRef("SO", salesOrder.refNumber)}`,
     sourceId: invoice.id,
   });
 
@@ -166,6 +226,7 @@ router.post("/:id/generate-invoice", async (req, res) => {
 
   res.status(201).json({
     ...invoice,
+    refNumber: formatRef("INV", invoice.refNumber),
     baseAmount: invoice.baseAmount.toNumber(),
     taxAmount: invoice.taxAmount.toNumber(),
     amount: invoice.amount.toNumber(),

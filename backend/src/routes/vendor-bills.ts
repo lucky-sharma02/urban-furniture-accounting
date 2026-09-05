@@ -1,6 +1,8 @@
 import { Router } from "express";
+import { formatRef } from "../lib/format-ref";
 import { getJournalByName, postVendorBill, postVendorPayment } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
+import { isContactUser, ownsRecord, scopeWhere } from "../middleware/portal-scope";
 
 const router = Router();
 
@@ -10,8 +12,9 @@ function toCents(amount: number): number {
   return Math.round(amount * 100);
 }
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   const vendorBills = await prisma.vendorBill.findMany({
+    where: scopeWhere(req, "vendorId"),
     include: { vendor: true },
     orderBy: { date: "desc" },
   });
@@ -19,6 +22,7 @@ router.get("/", async (_req, res) => {
   res.json(
     vendorBills.map((bill) => ({
       ...bill,
+      refNumber: formatRef("BILL", bill.refNumber),
       amount: bill.amount.toNumber(),
       amountDue: bill.amountDue.toNumber(),
     })),
@@ -28,26 +32,33 @@ router.get("/", async (_req, res) => {
 router.get("/:id", async (req, res) => {
   const vendorBill = await prisma.vendorBill.findUnique({
     where: { id: req.params.id },
-    include: { vendor: true, payments: true },
+    include: { vendor: true, payments: { include: { paymentAccount: true } } },
   });
 
-  if (!vendorBill) {
+  if (!vendorBill || !ownsRecord(req, vendorBill.vendorId)) {
     return res.status(404).json({ error: "vendor bill not found" });
   }
 
   res.json({
     ...vendorBill,
+    refNumber: formatRef("BILL", vendorBill.refNumber),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
     payments: vendorBill.payments.map((payment) => ({
       ...payment,
+      refNumber: formatRef("PMT", payment.refNumber),
       amount: payment.amount.toNumber(),
     })),
   });
 });
 
-// Create a Vendor Bill directly, with no backing Purchase Order.
+// Create a Vendor Bill directly, with no backing Purchase Order. Staff only — a Contact
+// user has no create rights over transactions per the role table.
 router.post("/", async (req, res) => {
+  if (isContactUser(req)) {
+    return res.status(403).json({ error: "insufficient permissions" });
+  }
+
   const { vendorId, date, amount } = req.body;
 
   if (typeof vendorId !== "string" || vendorId.length === 0) {
@@ -86,6 +97,7 @@ router.post("/", async (req, res) => {
 
   res.status(201).json({
     ...vendorBill,
+    refNumber: formatRef("BILL", vendorBill.refNumber),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
   });
@@ -108,7 +120,7 @@ router.post("/:id/payments", async (req, res) => {
   }
 
   const vendorBill = await prisma.vendorBill.findUnique({ where: { id: req.params.id } });
-  if (!vendorBill) {
+  if (!vendorBill || !ownsRecord(req, vendorBill.vendorId)) {
     return res.status(404).json({ error: "vendor bill not found" });
   }
 
@@ -149,9 +161,10 @@ router.post("/:id/payments", async (req, res) => {
   });
 
   res.status(201).json({
-    payment: { ...payment, amount: payment.amount.toNumber() },
+    payment: { ...payment, refNumber: formatRef("PMT", payment.refNumber), amount: payment.amount.toNumber() },
     vendorBill: {
       ...updatedBill,
+      refNumber: formatRef("BILL", updatedBill.refNumber),
       amount: updatedBill.amount.toNumber(),
       amountDue: updatedBill.amountDue.toNumber(),
     },

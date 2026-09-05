@@ -64,6 +64,35 @@ enum SalesOrderStatus {
   Invoiced
 }
 
+enum Role {
+  Admin
+  Accountant
+  Contact
+}
+
+// Only meaningful for a Contact-role user whose linked Contact is type Both — it
+// restricts which portal list that login sees. Null for everyone else (a pure
+// Vendor/Customer contact's access is derived straight from the contact type).
+enum PortalScope {
+  Invoices
+  Bills
+  Both
+}
+
+// contactId is set only for Role.Contact users — it is exactly what portal-scope
+// filtering keys every query by, so a login can never claim more than one Contact's data.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  contactId    String?      @unique
+  contact      Contact?     @relation(fields: [contactId], references: [id])
+  portalScope  PortalScope?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Contact {
   id                String             @id @default(cuid())
   name              String
@@ -79,10 +108,12 @@ model Contact {
   vendorBills       VendorBill[]
   salesOrders       SalesOrder[]
   customerInvoices  CustomerInvoice[]
+  user              User?
 }
 
 model Product {
   id                 String              @id @default(cuid())
+  refNumber          Int                 @unique @default(autoincrement())
   name               String              @unique
   category           String
   salesPrice         Decimal             @db.Decimal(12, 2)
@@ -132,20 +163,47 @@ model JournalEntry {
 }
 
 model JournalEntryLine {
-  id             String       @id @default(cuid())
-  journalEntryId String
-  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
-  accountId      String
-  account        Account      @relation(fields: [accountId], references: [id])
-  partnerId      String?
-  partner        Contact?     @relation(fields: [partnerId], references: [id])
-  debit          Decimal      @db.Decimal(12, 2)
-  credit         Decimal      @db.Decimal(12, 2)
-  createdAt      DateTime     @default(now())
+  id                String           @id @default(cuid())
+  journalEntryId    String
+  journalEntry      JournalEntry     @relation(fields: [journalEntryId], references: [id])
+  accountId         String
+  account           Account          @relation(fields: [accountId], references: [id])
+  partnerId         String?
+  partner           Contact?         @relation(fields: [partnerId], references: [id])
+  analyticAccountId String?
+  analyticAccount   AnalyticAccount? @relation(fields: [analyticAccountId], references: [id])
+  debit             Decimal          @db.Decimal(12, 2)
+  credit            Decimal          @db.Decimal(12, 2)
+  createdAt         DateTime         @default(now())
+}
+
+// A tag for cost/revenue tracking independent of the Chart of Accounts (e.g. a project
+// or department) — Budget rows compare a planned amount against JournalEntryLines
+// actually posted against the same AnalyticAccount within a period.
+model AnalyticAccount {
+  id                String             @id @default(cuid())
+  name              String             @unique
+  isArchived        Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  journalEntryLines JournalEntryLine[]
+  budgets           Budget[]
+}
+
+model Budget {
+  id                String          @id @default(cuid())
+  analyticAccountId String
+  analyticAccount   AnalyticAccount @relation(fields: [analyticAccountId], references: [id])
+  periodStart       DateTime
+  periodEnd         DateTime
+  plannedAmount     Decimal         @db.Decimal(12, 2)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 }
 
 model PurchaseOrder {
   id          String              @id @default(cuid())
+  refNumber   Int                 @unique @default(autoincrement())
   vendorId    String
   vendor      Contact             @relation(fields: [vendorId], references: [id])
   date        DateTime
@@ -168,6 +226,7 @@ model PurchaseOrderLine {
 
 model VendorBill {
   id              String           @id @default(cuid())
+  refNumber       Int              @unique @default(autoincrement())
   purchaseOrderId String?
   purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
   vendorId        String
@@ -185,6 +244,7 @@ model VendorBill {
 // application layer (each post*Payment route only ever fills in its own side).
 model Payment {
   id                String           @id @default(cuid())
+  refNumber         Int              @unique @default(autoincrement())
   vendorBillId      String?
   vendorBill        VendorBill?      @relation(fields: [vendorBillId], references: [id])
   customerInvoiceId String?
@@ -198,6 +258,7 @@ model Payment {
 
 model SalesOrder {
   id         String            @id @default(cuid())
+  refNumber  Int               @unique @default(autoincrement())
   customerId String
   customer   Contact           @relation(fields: [customerId], references: [id])
   date       DateTime
@@ -220,6 +281,7 @@ model SalesOrderLine {
 
 model CustomerInvoice {
   id           String           @id @default(cuid())
+  refNumber    Int              @unique @default(autoincrement())
   salesOrderId String?
   salesOrder   SalesOrder?      @relation(fields: [salesOrderId], references: [id])
   customerId   String

@@ -239,13 +239,32 @@ export interface AccountBalance {
   balance: number;
 }
 
+export interface AccountBalanceOptions {
+  // Restricts the balance to entries dated on/before this date (Balance Sheet "as of").
+  asOf?: Date;
+  // Restricts the balance to entries dated within [from, to] (P&L "for period").
+  from?: Date;
+  to?: Date;
+}
+
 // Running balance for one account, computed from posted JournalEntryLines.
 // Used by reports (M5) instead of re-deriving it from raw transactions each time.
-export async function getAccountBalance(accountId: string): Promise<AccountBalance> {
+export async function getAccountBalance(
+  accountId: string,
+  options: AccountBalanceOptions = {},
+): Promise<AccountBalance> {
   const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
 
+  const dateFilter: { lte?: Date; gte?: Date } = {};
+  if (options.asOf) dateFilter.lte = options.asOf;
+  if (options.from) dateFilter.gte = options.from;
+  if (options.to) dateFilter.lte = options.to;
+
   const totals = await prisma.journalEntryLine.aggregate({
-    where: { accountId },
+    where: {
+      accountId,
+      ...(Object.keys(dateFilter).length > 0 ? { journalEntry: { date: dateFilter } } : {}),
+    },
     _sum: { debit: true, credit: true },
   });
 

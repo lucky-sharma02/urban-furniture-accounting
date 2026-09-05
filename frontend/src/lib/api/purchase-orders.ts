@@ -12,6 +12,7 @@ export interface PurchaseOrderLine {
 
 export interface PurchaseOrder {
   id: string;
+  refNumber: string;
   vendorId: string;
   date: string;
   status: PurchaseOrderStatus;
@@ -37,12 +38,19 @@ export function listPurchaseOrders() {
 }
 
 export function getPurchaseOrder(id: string) {
-  return apiFetch<PurchaseOrder>(`/purchase-orders/${id}`);
+  return apiFetch<PurchaseOrder & { vendorBills: VendorBill[] }>(`/purchase-orders/${id}`);
 }
 
 export function createPurchaseOrder(input: CreatePurchaseOrderInput) {
   return apiFetch<PurchaseOrder>("/purchase-orders", {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePurchaseOrder(id: string, input: CreatePurchaseOrderInput) {
+  return apiFetch<PurchaseOrder>(`/purchase-orders/${id}`, {
+    method: "PUT",
     body: JSON.stringify(input),
   });
 }

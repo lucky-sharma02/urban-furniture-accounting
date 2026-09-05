@@ -1,5 +1,6 @@
 import { Prisma, type Product } from "@prisma/client";
 import { Router } from "express";
+import { formatRef } from "../lib/format-ref";
 import { prisma } from "../lib/prisma";
 
 const router = Router();
@@ -9,6 +10,7 @@ const router = Router();
 function serializeProduct(product: Product) {
   return {
     ...product,
+    refNumber: formatRef("PRD", product.refNumber),
     salesPrice: product.salesPrice.toNumber(),
     purchasePrice: product.purchasePrice.toNumber(),
   };

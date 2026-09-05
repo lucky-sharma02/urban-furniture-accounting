@@ -18,12 +18,18 @@ import {
 } from "@/components/ui/select";
 import { listContacts, type Contact } from "@/lib/api/contacts";
 import { listProducts, type Product } from "@/lib/api/products";
-import { createPurchaseOrder, type PurchaseOrderLineInput } from "@/lib/api/purchase-orders";
+import {
+  createPurchaseOrder,
+  updatePurchaseOrder,
+  type PurchaseOrder,
+  type PurchaseOrderLineInput,
+} from "@/lib/api/purchase-orders";
 
 interface PurchaseOrderFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
+  editingOrder?: PurchaseOrder;
 }
 
 interface LineRow extends PurchaseOrderLineInput {
@@ -34,7 +40,12 @@ function emptyRow(): LineRow {
   return { key: crypto.randomUUID(), productId: "", quantity: 1, unitPrice: 0 };
 }
 
-export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: PurchaseOrderFormDialogProps) {
+export function PurchaseOrderFormDialog({
+  open,
+  onOpenChange,
+  onSaved,
+  editingOrder,
+}: PurchaseOrderFormDialogProps) {
   const [vendors, setVendors] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [vendorId, setVendorId] = useState("");
@@ -47,12 +58,25 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
     if (open) {
       listContacts().then((contacts) => setVendors(contacts.filter((c) => c.type !== "Customer")));
       listProducts().then(setProducts);
-      setVendorId("");
-      setDate(new Date().toISOString().slice(0, 10));
-      setLines([emptyRow()]);
+      if (editingOrder) {
+        setVendorId(editingOrder.vendorId);
+        setDate(editingOrder.date.slice(0, 10));
+        setLines(
+          editingOrder.lines.map((line) => ({
+            key: crypto.randomUUID(),
+            productId: line.productId,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+          })),
+        );
+      } else {
+        setVendorId("");
+        setDate(new Date().toISOString().slice(0, 10));
+        setLines([emptyRow()]);
+      }
       setError(null);
     }
-  }, [open]);
+  }, [open, editingOrder]);
 
   function updateLine(key: string, patch: Partial<LineRow>) {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -73,11 +97,16 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
     setSaving(true);
     setError(null);
     try {
-      await createPurchaseOrder({
+      const input = {
         vendorId,
         date,
         lines: lines.map(({ productId, quantity, unitPrice }) => ({ productId, quantity, unitPrice })),
-      });
+      };
+      if (editingOrder) {
+        await updatePurchaseOrder(editingOrder.id, input);
+      } else {
+        await createPurchaseOrder(input);
+      }
       onSaved();
       onOpenChange(false);
     } catch (err) {
@@ -92,7 +121,7 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>New Purchase Order</DialogTitle>
+            <DialogTitle>{editingOrder ? "Edit Purchase Order" : "New Purchase Order"}</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-4">
@@ -129,7 +158,16 @@ export function PurchaseOrderFormDialog({ open, onOpenChange, onSaved }: Purchas
 
               {lines.map((line) => (
                 <div key={line.key} className="grid grid-cols-[1fr_100px_120px_auto] items-center gap-2">
-                  <Select value={line.productId} onValueChange={(value) => updateLine(line.key, { productId: value })}>
+                  <Select
+                    value={line.productId}
+                    onValueChange={(value) => {
+                      const product = products.find((p) => p.id === value);
+                      updateLine(line.key, {
+                        productId: value,
+                        unitPrice: product ? product.purchasePrice : 0,
+                      });
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Product" />
                     </SelectTrigger>

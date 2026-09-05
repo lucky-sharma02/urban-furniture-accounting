@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "prisma db seed",
+    "seed:bulk": "ts-node prisma/seed-bulk.ts",
     "test": "vitest run"
   },
   "prisma": {

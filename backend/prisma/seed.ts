@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/lib/auth";
 
 const prisma = new PrismaClient();
 
@@ -69,7 +70,7 @@ async function main() {
     }),
   ]);
 
-  await prisma.contact.upsert({
+  const sterling = await prisma.contact.upsert({
     where: { email: "sterling.timber@example.com" },
     update: {},
     create: {
@@ -79,7 +80,7 @@ async function main() {
     },
   });
 
-  await prisma.contact.upsert({
+  const meera = await prisma.contact.upsert({
     where: { email: "meera.kulkarni@example.com" },
     update: {},
     create: {
@@ -97,6 +98,48 @@ async function main() {
       category: "Furniture",
       salesPrice: 4500,
       purchasePrice: 3000,
+    },
+  });
+
+  // Demo logins — change these before any non-local deployment.
+  const [adminPassword, accountantPassword, customerPortalPassword, vendorPortalPassword] = await Promise.all([
+    hashPassword("admin123"),
+    hashPassword("accountant123"),
+    hashPassword("portal123"),
+    hashPassword("portal123"),
+  ]);
+
+  await prisma.user.upsert({
+    where: { email: "admin@urbanfurniture.com" },
+    update: {},
+    create: { email: "admin@urbanfurniture.com", passwordHash: adminPassword, role: "Admin" },
+  });
+
+  await prisma.user.upsert({
+    where: { email: "accountant@urbanfurniture.com" },
+    update: {},
+    create: { email: "accountant@urbanfurniture.com", passwordHash: accountantPassword, role: "Accountant" },
+  });
+
+  await prisma.user.upsert({
+    where: { email: "meera.kulkarni@example.com" },
+    update: {},
+    create: {
+      email: "meera.kulkarni@example.com",
+      passwordHash: customerPortalPassword,
+      role: "Contact",
+      contactId: meera.id,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: "sterling.timber@example.com" },
+    update: {},
+    create: {
+      email: "sterling.timber@example.com",
+      passwordHash: vendorPortalPassword,
+      role: "Contact",
+      contactId: sterling.id,
     },
   });
 }

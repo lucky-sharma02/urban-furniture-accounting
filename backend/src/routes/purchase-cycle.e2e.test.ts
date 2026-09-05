@@ -3,7 +3,7 @@ import request from "supertest";
 import app from "../app";
 import { getAccountBalance, getAccountByName } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
-import { getOrCreateTestVendor } from "../lib/test-fixtures";
+import { getOrCreateTestVendor, testAuthHeader } from "../lib/test-fixtures";
 
 async function cleanupBill(billId: string, poId?: string) {
   const payments = await prisma.payment.findMany({ where: { vendorBillId: billId } });
@@ -29,6 +29,7 @@ describe("Purchase cycle E2E", () => {
 
     const poRes = await request(app)
       .post("/purchase-orders")
+      .set("Authorization", testAuthHeader())
       .send({
         vendorId: vendor.id,
         date: "2026-01-01",
@@ -37,7 +38,9 @@ describe("Purchase cycle E2E", () => {
     expect(poRes.status).toBe(201);
     const poId = poRes.body.id;
 
-    const billRes = await request(app).post(`/purchase-orders/${poId}/convert-to-bill`);
+    const billRes = await request(app)
+      .post(`/purchase-orders/${poId}/convert-to-bill`)
+      .set("Authorization", testAuthHeader());
     expect(billRes.status).toBe(201);
     const billId = billRes.body.id;
     const amount = billRes.body.amount;
@@ -48,6 +51,7 @@ describe("Purchase cycle E2E", () => {
 
     const payRes = await request(app)
       .post(`/vendor-bills/${billId}/payments`)
+      .set("Authorization", testAuthHeader())
       .send({ amount, date: "2026-01-02", paymentAccountId: bank.id });
     expect(payRes.status).toBe(201);
     expect(payRes.body.vendorBill.status).toBe("Paid");
@@ -65,6 +69,7 @@ describe("Purchase cycle E2E", () => {
 
     const billRes = await request(app)
       .post("/vendor-bills")
+      .set("Authorization", testAuthHeader())
       .send({ vendorId: vendor.id, date: "2026-01-01", amount: 1000 });
     expect(billRes.status).toBe(201);
     expect(billRes.body.status).toBe("Draft");
@@ -73,6 +78,7 @@ describe("Purchase cycle E2E", () => {
 
     const pay1 = await request(app)
       .post(`/vendor-bills/${billId}/payments`)
+      .set("Authorization", testAuthHeader())
       .send({ amount: 400, date: "2026-01-02", paymentAccountId: bank.id });
     expect(pay1.status).toBe(201);
     expect(pay1.body.vendorBill.status).toBe("Partial");
@@ -80,6 +86,7 @@ describe("Purchase cycle E2E", () => {
 
     const pay2 = await request(app)
       .post(`/vendor-bills/${billId}/payments`)
+      .set("Authorization", testAuthHeader())
       .send({ amount: 600, date: "2026-01-03", paymentAccountId: bank.id });
     expect(pay2.status).toBe(201);
     expect(pay2.body.vendorBill.status).toBe("Paid");

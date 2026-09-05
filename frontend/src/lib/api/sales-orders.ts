@@ -12,6 +12,7 @@ export interface SalesOrderLine {
 
 export interface SalesOrder {
   id: string;
+  refNumber: string;
   customerId: string;
   date: string;
   status: SalesOrderStatus;
@@ -37,12 +38,19 @@ export function listSalesOrders() {
 }
 
 export function getSalesOrder(id: string) {
-  return apiFetch<SalesOrder>(`/sales-orders/${id}`);
+  return apiFetch<SalesOrder & { invoices: CustomerInvoice[] }>(`/sales-orders/${id}`);
 }
 
 export function createSalesOrder(input: CreateSalesOrderInput) {
   return apiFetch<SalesOrder>("/sales-orders", {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateSalesOrder(id: string, input: CreateSalesOrderInput) {
+  return apiFetch<SalesOrder>(`/sales-orders/${id}`, {
+    method: "PUT",
     body: JSON.stringify(input),
   });
 }

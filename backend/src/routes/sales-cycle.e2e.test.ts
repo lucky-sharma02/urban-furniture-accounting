@@ -3,7 +3,7 @@ import request from "supertest";
 import app from "../app";
 import { getAccountBalance, getAccountByName } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
-import { getOrCreateTestCustomer } from "../lib/test-fixtures";
+import { getOrCreateTestCustomer, testAuthHeader } from "../lib/test-fixtures";
 
 async function cleanupInvoice(invoiceId: string, soId?: string) {
   const payments = await prisma.payment.findMany({ where: { customerInvoiceId: invoiceId } });
@@ -29,6 +29,7 @@ describe("Sales cycle E2E", () => {
 
     const soRes = await request(app)
       .post("/sales-orders")
+      .set("Authorization", testAuthHeader())
       .send({
         customerId: customer.id,
         date: "2026-01-01",
@@ -37,7 +38,9 @@ describe("Sales cycle E2E", () => {
     expect(soRes.status).toBe(201);
     const soId = soRes.body.id;
 
-    const invoiceRes = await request(app).post(`/sales-orders/${soId}/generate-invoice`);
+    const invoiceRes = await request(app)
+      .post(`/sales-orders/${soId}/generate-invoice`)
+      .set("Authorization", testAuthHeader());
     expect(invoiceRes.status).toBe(201);
     const invoiceId = invoiceRes.body.id;
     expect(invoiceRes.body.baseAmount).toBe(200);
@@ -50,6 +53,7 @@ describe("Sales cycle E2E", () => {
 
     const payRes = await request(app)
       .post(`/customer-invoices/${invoiceId}/payments`)
+      .set("Authorization", testAuthHeader())
       .send({ amount, date: "2026-01-02", paymentAccountId: bank.id });
     expect(payRes.status).toBe(201);
     expect(payRes.body.customerInvoice.status).toBe("Paid");
@@ -68,6 +72,7 @@ describe("Sales cycle E2E", () => {
 
     const soRes = await request(app)
       .post("/sales-orders")
+      .set("Authorization", testAuthHeader())
       .send({
         customerId: customer.id,
         date: "2026-01-01",
@@ -76,7 +81,9 @@ describe("Sales cycle E2E", () => {
     expect(soRes.status).toBe(201);
     const soId = soRes.body.id;
 
-    const invoiceRes = await request(app).post(`/sales-orders/${soId}/generate-invoice`);
+    const invoiceRes = await request(app)
+      .post(`/sales-orders/${soId}/generate-invoice`)
+      .set("Authorization", testAuthHeader());
     expect(invoiceRes.status).toBe(201);
     expect(invoiceRes.body.status).toBe("Draft");
     const invoiceId = invoiceRes.body.id;
@@ -86,6 +93,7 @@ describe("Sales cycle E2E", () => {
 
     const pay1 = await request(app)
       .post(`/customer-invoices/${invoiceId}/payments`)
+      .set("Authorization", testAuthHeader())
       .send({ amount: 700, date: "2026-01-02", paymentAccountId: bank.id });
     expect(pay1.status).toBe(201);
     expect(pay1.body.customerInvoice.status).toBe("Partial");
@@ -93,6 +101,7 @@ describe("Sales cycle E2E", () => {
 
     const pay2 = await request(app)
       .post(`/customer-invoices/${invoiceId}/payments`)
+      .set("Authorization", testAuthHeader())
       .send({ amount: 480, date: "2026-01-03", paymentAccountId: bank.id });
     expect(pay2.status).toBe(201);
     expect(pay2.body.customerInvoice.status).toBe("Paid");

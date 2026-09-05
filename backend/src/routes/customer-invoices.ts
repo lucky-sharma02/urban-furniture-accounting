@@ -1,6 +1,8 @@
 import { Router } from "express";
+import { formatRef } from "../lib/format-ref";
 import { getJournalByName, postCustomerPayment } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
+import { ownsRecord, scopeWhere } from "../middleware/portal-scope";
 
 const router = Router();
 
@@ -10,8 +12,9 @@ function toCents(amount: number): number {
   return Math.round(amount * 100);
 }
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   const invoices = await prisma.customerInvoice.findMany({
+    where: scopeWhere(req, "customerId"),
     include: { customer: true },
     orderBy: { date: "desc" },
   });
@@ -19,6 +22,7 @@ router.get("/", async (_req, res) => {
   res.json(
     invoices.map((invoice) => ({
       ...invoice,
+      refNumber: formatRef("INV", invoice.refNumber),
       baseAmount: invoice.baseAmount.toNumber(),
       taxAmount: invoice.taxAmount.toNumber(),
       amount: invoice.amount.toNumber(),
@@ -30,21 +34,23 @@ router.get("/", async (_req, res) => {
 router.get("/:id", async (req, res) => {
   const invoice = await prisma.customerInvoice.findUnique({
     where: { id: req.params.id },
-    include: { customer: true, payments: true },
+    include: { customer: true, payments: { include: { paymentAccount: true } } },
   });
 
-  if (!invoice) {
+  if (!invoice || !ownsRecord(req, invoice.customerId)) {
     return res.status(404).json({ error: "customer invoice not found" });
   }
 
   res.json({
     ...invoice,
+    refNumber: formatRef("INV", invoice.refNumber),
     baseAmount: invoice.baseAmount.toNumber(),
     taxAmount: invoice.taxAmount.toNumber(),
     amount: invoice.amount.toNumber(),
     amountDue: invoice.amountDue.toNumber(),
     payments: invoice.payments.map((payment) => ({
       ...payment,
+      refNumber: formatRef("PMT", payment.refNumber),
       amount: payment.amount.toNumber(),
     })),
   });
@@ -67,7 +73,7 @@ router.post("/:id/payments", async (req, res) => {
   }
 
   const invoice = await prisma.customerInvoice.findUnique({ where: { id: req.params.id } });
-  if (!invoice) {
+  if (!invoice || !ownsRecord(req, invoice.customerId)) {
     return res.status(404).json({ error: "customer invoice not found" });
   }
 
@@ -108,9 +114,10 @@ router.post("/:id/payments", async (req, res) => {
   });
 
   res.status(201).json({
-    payment: { ...payment, amount: payment.amount.toNumber() },
+    payment: { ...payment, refNumber: formatRef("PMT", payment.refNumber), amount: payment.amount.toNumber() },
     customerInvoice: {
       ...updatedInvoice,
+      refNumber: formatRef("INV", updatedInvoice.refNumber),
       baseAmount: updatedInvoice.baseAmount.toNumber(),
       taxAmount: updatedInvoice.taxAmount.toNumber(),
       amount: updatedInvoice.amount.toNumber(),
