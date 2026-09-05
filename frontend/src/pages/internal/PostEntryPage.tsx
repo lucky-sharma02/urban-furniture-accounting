@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -50,6 +51,18 @@ export function PostEntryPage() {
       setJournalId(journals[0].id);
     }
   }, [journals, journalId]);
+
+  // Client-side mirror of the server's balance rule, purely for immediate feedback —
+  // the server (postJournalEntry) is still the source of truth and re-validates on submit.
+  const { totalDebit, totalCredit, isBalanced } = useMemo(() => {
+    const debit = lines.reduce((sum, line) => sum + (line.debit || 0), 0);
+    const credit = lines.reduce((sum, line) => sum + (line.credit || 0), 0);
+    return {
+      totalDebit: debit,
+      totalCredit: credit,
+      isBalanced: Math.round(debit * 100) === Math.round(credit * 100),
+    };
+  }, [lines]);
 
   function updateLine(key: string, patch: Partial<LineRow>) {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -197,10 +210,22 @@ export function PostEntryPage() {
           </Button>
         </div>
 
+        <div
+          className={cn(
+            "w-fit rounded-md border px-3 py-2 text-sm",
+            isBalanced
+              ? "border-green-200 bg-green-50 text-green-700"
+              : "border-destructive/30 bg-destructive/5 text-destructive",
+          )}
+        >
+          Debit: {totalDebit.toFixed(2)} · Credit: {totalCredit.toFixed(2)} ·{" "}
+          {isBalanced ? "Balanced" : `Unbalanced by ${Math.abs(totalDebit - totalCredit).toFixed(2)}`}
+        </div>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
         {success && <p className="text-sm text-green-600">{success}</p>}
 
-        <Button type="submit" className="w-fit" disabled={saving}>
+        <Button type="submit" className="w-fit" disabled={saving || !isBalanced}>
           {saving ? "Posting..." : "Post Entry"}
         </Button>
       </form>
