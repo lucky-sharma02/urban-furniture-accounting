@@ -3,6 +3,7 @@ import express from "express";
 import accountsRouter from "./routes/accounts";
 import contactsRouter from "./routes/contacts";
 import journalsRouter from "./routes/journals";
+import productsRouter from "./routes/products";
 
 const app = express();
 
@@ -20,5 +21,6 @@ app.get("/health", (_req, res) => {
 app.use("/accounts", accountsRouter);
 app.use("/contacts", contactsRouter);
 app.use("/journals", journalsRouter);
+app.use("/products", productsRouter);
 
 export default app;
