@@ -91,6 +91,16 @@ export async function getAccountByName(name: string) {
   return account;
 }
 
+// Standard journals (Purchase Journal, Sales Journal, ...) are also looked up by
+// name — same reasoning as getAccountByName.
+export async function getJournalByName(name: string) {
+  const journal = await prisma.journal.findUnique({ where: { name } });
+  if (!journal) {
+    throw new Error(`required journal "${name}" not found — has the seed script run?`);
+  }
+  return journal;
+}
+
 export interface PostVendorBillInput {
   journalId: string;
   vendorId: string;
