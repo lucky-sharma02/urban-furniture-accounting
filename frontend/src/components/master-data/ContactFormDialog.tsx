@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ImageUpload } from "@/components/shared/ImageUpload";
 import { createContact, updateContact, type Contact } from "@/lib/api/contacts";
 import { firstError, isEmail, isNonEmpty, isPhone } from "@/lib/validation";
 
@@ -43,6 +44,7 @@ const emptyForm = {
 
 export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: ContactFormDialogProps) {
   const [form, setForm] = useState(emptyForm);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -63,6 +65,7 @@ export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: Cont
             }
           : emptyForm,
       );
+      setImageDataUrl(contact?.imageDataUrl ?? null);
       setError(null);
     }
   }, [open, contact]);
@@ -94,6 +97,7 @@ export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: Cont
         state: form.state || null,
         country: form.country || null,
         pincode: form.pincode || null,
+        imageDataUrl,
       };
       if (contact) {
         await updateContact(contact.id, input);
@@ -120,6 +124,8 @@ export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: Cont
           </DialogHeader>
 
           <div className="flex flex-col gap-3.5 py-4">
+            <div className="flex flex-col-reverse gap-4 sm:flex-row">
+            <div className="flex flex-1 flex-col gap-3.5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name" required className="text-xs font-semibold text-slate-700">Entity / Full Name</Label>
@@ -174,6 +180,13 @@ export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: Cont
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
               </div>
+            </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-semibold text-slate-700">Photo / Logo</Label>
+              <ImageUpload shape="circle" value={imageDataUrl} onChange={setImageDataUrl} />
+            </div>
             </div>
 
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">

@@ -53,9 +53,17 @@ export function ContactKanbanBoard({ contacts, onEdit, onArchive }: ContactKanba
                     className="flex flex-col gap-2.5 rounded-lg border border-slate-200 bg-white p-4 shadow-card hover:shadow-card-hover transition-all"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-md bg-slate-100 text-slate-800 flex items-center justify-center font-bold text-xs border border-slate-200 shrink-0">
-                        {getInitials(contact.name)}
-                      </div>
+                      {contact.imageDataUrl ? (
+                        <img
+                          src={contact.imageDataUrl}
+                          alt=""
+                          className="h-9 w-9 shrink-0 rounded-md border border-slate-200 object-cover"
+                        />
+                      ) : (
+                        <div className="h-9 w-9 rounded-md bg-slate-100 text-slate-800 flex items-center justify-center font-bold text-xs border border-slate-200 shrink-0">
+                          {getInitials(contact.name)}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-slate-900 truncate">{contact.name}</p>
                         <span className="text-[10px] text-slate-400 font-mono">ID: {contact.id.slice(-6)}</span>

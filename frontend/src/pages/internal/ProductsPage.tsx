@@ -179,7 +179,20 @@ export function ProductsPage() {
                     <span className="text-[10px] text-slate-400 font-mono">ID: {product.id.slice(-6)}</span>
                   </div>
 
-                  <h3 className="font-semibold text-sm text-slate-900 mt-3 leading-snug font-display">{product.name}</h3>
+                  <div className="mt-3 flex items-start gap-3">
+                    {product.imageDataUrl ? (
+                      <img
+                        src={product.imageDataUrl}
+                        alt=""
+                        className="h-12 w-12 shrink-0 rounded-md border border-slate-200 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-slate-400">
+                        <Package className="h-5 w-5" />
+                      </div>
+                    )}
+                    <h3 className="font-semibold text-sm text-slate-900 leading-snug font-display">{product.name}</h3>
+                  </div>
 
                   <div className="mt-4 p-3 rounded-md bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
@@ -217,6 +230,7 @@ export function ProductsPage() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow className="border-slate-200">
+                <TableHead className="w-12 text-xs font-semibold text-slate-700" />
                 <TableHead className="text-xs font-semibold text-slate-700">Product Name</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-700">Type</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-700">Category</TableHead>
@@ -234,6 +248,19 @@ export function ProductsPage() {
                     : "0.0";
                 return (
                   <TableRow key={product.id} className="border-slate-100 hover:bg-slate-50 transition-colors">
+                    <TableCell className="py-2">
+                      {product.imageDataUrl ? (
+                        <img
+                          src={product.imageDataUrl}
+                          alt=""
+                          className="h-8 w-8 rounded-md border border-slate-200 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-slate-400">
+                          <Package className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium text-xs text-slate-900">{product.name}</TableCell>
                     <TableCell className="text-xs text-slate-600">{product.type}</TableCell>
                     <TableCell>

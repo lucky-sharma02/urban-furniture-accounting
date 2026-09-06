@@ -13,6 +13,7 @@ export interface Contact {
   state: string | null;
   country: string | null;
   pincode: string | null;
+  imageDataUrl: string | null;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -29,6 +30,7 @@ export interface ContactInput {
   state?: string | null;
   country?: string | null;
   pincode?: string | null;
+  imageDataUrl?: string | null;
 }
 
 export function listContacts(includeArchived = false) {

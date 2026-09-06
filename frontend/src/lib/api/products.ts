@@ -7,6 +7,7 @@ export interface Product {
   name: string;
   category: string;
   type: ProductType;
+  imageDataUrl: string | null;
   salesPrice: number;
   purchasePrice: number;
   isArchived: boolean;
@@ -18,6 +19,7 @@ export interface ProductInput {
   name: string;
   category: string;
   type: ProductType;
+  imageDataUrl?: string | null;
   salesPrice: number;
   purchasePrice: number;
 }

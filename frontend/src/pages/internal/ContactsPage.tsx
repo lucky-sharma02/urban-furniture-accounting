@@ -173,9 +173,17 @@ export function ContactsPage() {
                 <TableRow key={contact.id} className="border-slate-100 hover:bg-slate-50 transition-colors">
                   <TableCell>
                     <div className="flex items-center gap-2.5">
-                      <div className="h-7 w-7 rounded-md bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-center text-[10px] font-bold shrink-0">
-                        {getInitials(contact.name)}
-                      </div>
+                      {contact.imageDataUrl ? (
+                        <img
+                          src={contact.imageDataUrl}
+                          alt=""
+                          className="h-7 w-7 shrink-0 rounded-md border border-slate-200 object-cover"
+                        />
+                      ) : (
+                        <div className="h-7 w-7 rounded-md bg-slate-100 text-slate-800 border border-slate-200 flex items-center justify-center text-[10px] font-bold shrink-0">
+                          {getInitials(contact.name)}
+                        </div>
+                      )}
                       <span className="font-medium text-xs text-slate-900">{contact.name}</span>
                     </div>
                   </TableCell>

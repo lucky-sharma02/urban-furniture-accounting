@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ImageUpload } from "@/components/shared/ImageUpload";
 import { createProduct, updateProduct, type Product } from "@/lib/api/products";
 import type { ProductType } from "@urban-furniture/shared";
 import { firstError, isAmount, isNonEmpty } from "@/lib/validation";
@@ -33,6 +34,7 @@ const emptyForm = { name: "", category: "", type: "Goods" as ProductType, salesP
 
 export function ProductFormDialog({ open, onOpenChange, product, onSaved }: ProductFormDialogProps) {
   const [form, setForm] = useState(emptyForm);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -49,6 +51,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
             }
           : emptyForm,
       );
+      setImageDataUrl(product?.imageDataUrl ?? null);
       setError(null);
     }
   }, [open, product]);
@@ -75,6 +78,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
         name: form.name,
         category: form.category,
         type: form.type,
+        imageDataUrl,
         salesPrice: Number(form.salesPrice),
         purchasePrice: Number(form.purchasePrice),
       };
@@ -94,7 +98,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-white border border-slate-200 shadow-elevated">
+      <DialogContent className="sm:max-w-lg bg-white border border-slate-200 shadow-elevated">
         <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
             <DialogTitle className="text-base font-bold font-display text-slate-900">
@@ -102,7 +106,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col gap-3.5 py-4">
+          <div className="flex flex-col-reverse gap-4 py-4 sm:flex-row">
+          <div className="flex flex-1 flex-col gap-3.5">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="name" required className="text-xs font-semibold text-slate-700">Product Name / Design</Label>
               <Input
@@ -185,6 +190,12 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
                 {error}
               </div>
             )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-semibold text-slate-700">Product Image</Label>
+            <ImageUpload value={imageDataUrl} onChange={setImageDataUrl} />
+          </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
