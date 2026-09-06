@@ -75,7 +75,7 @@ router.get("/:id", async (req, res) => {
 // transitions status Draft -> Partial -> Paid, and posts the payment (Debit Bank or
 // Cash / Credit Debtors) via postCustomerPayment().
 router.post("/:id/payments", async (req, res) => {
-  const { amount, date, paymentAccountId } = req.body;
+  const { amount, date, paymentAccountId, note } = req.body;
 
   if (typeof amount !== "number" || amount <= 0) {
     return res.status(400).json({ error: "amount must be a positive number" });
@@ -104,6 +104,7 @@ router.post("/:id/payments", async (req, res) => {
       customerInvoiceId: invoice.id,
       amount,
       date: paymentDate,
+      note: typeof note === "string" && note.trim() !== "" ? note.trim() : null,
       paymentAccountId,
     },
   });

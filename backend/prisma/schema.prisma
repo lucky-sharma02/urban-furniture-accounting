@@ -329,6 +329,7 @@ model Payment {
   customerInvoice   CustomerInvoice? @relation(fields: [customerInvoiceId], references: [id])
   amount            Decimal          @db.Decimal(12, 2)
   date              DateTime
+  note              String?
   paymentAccountId  String
   paymentAccount    Account          @relation(fields: [paymentAccountId], references: [id])
   createdAt         DateTime         @default(now())
