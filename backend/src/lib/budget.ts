@@ -46,6 +46,8 @@ export interface BudgetReport {
   responsibleId: string | null;
   responsibleName: string | null;
   revisedFromId: string | null;
+  revisedFromName: string | null;
+  revisedToId: string | null;
   lines: BudgetLineReport[];
   totals: { committed: number; achieved: number; amountToAchieve: number };
 }
@@ -55,7 +57,12 @@ export interface BudgetReport {
 export async function buildBudgetReport(): Promise<BudgetReport[]> {
   const budgets = await prisma.budget.findMany({
     where: { status: { not: "Cancelled" } },
-    include: { lines: { include: { analyticAccount: true } }, responsible: true },
+    include: {
+      lines: { include: { analyticAccount: true } },
+      responsible: true,
+      revisedFrom: { select: { name: true } },
+      revisedTo: { select: { id: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -95,6 +102,8 @@ export async function buildBudgetReport(): Promise<BudgetReport[]> {
         responsibleId: budget.responsibleId,
         responsibleName: budget.responsible?.name ?? null,
         revisedFromId: budget.revisedFromId,
+        revisedFromName: budget.revisedFrom?.name ?? null,
+        revisedToId: budget.revisedTo?.id ?? null,
         lines,
         totals: {
           committed: lines.reduce((s, l) => s + l.committedAmount, 0),
