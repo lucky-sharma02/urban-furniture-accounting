@@ -39,6 +39,7 @@ export function RecordPaymentDialog({
   const [paymentAccountId, setPaymentAccountId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -48,6 +49,7 @@ export function RecordPaymentDialog({
       setPaymentAccountId("");
       setDate(new Date().toISOString().slice(0, 10));
       setAmount(String(amountDue));
+      setNote("");
       setError(null);
     }
   }, [open, amountDue]);
@@ -74,6 +76,7 @@ export function RecordPaymentDialog({
         amount: Number(amount),
         date,
         paymentAccountId,
+        note: note.trim() || undefined,
       });
       onRecorded();
       onOpenChange(false);
@@ -96,7 +99,7 @@ export function RecordPaymentDialog({
 
           <div className="flex flex-col gap-3.5 py-4">
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">Remaining Balance:</span>
+              <span className="text-xs font-semibold text-slate-500">Payment Type: Send · Remaining Balance:</span>
               <span className="text-sm font-bold font-display text-rose-600 tabular-nums">
                 ₹{amountDue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
@@ -143,6 +146,17 @@ export function RecordPaymentDialog({
                 className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white tabular-nums"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="payment-note" className="text-xs font-semibold text-slate-700">Note</Label>
+              <Input
+                id="payment-note"
+                placeholder="Optional reference or memo"
+                className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
               />
             </div>
 

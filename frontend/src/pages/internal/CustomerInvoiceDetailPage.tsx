@@ -190,6 +190,7 @@ export function CustomerInvoiceDetailPage() {
                   <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Receipt</TableHead>
                   <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Payment Date</TableHead>
                   <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Deposited To</TableHead>
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Note</TableHead>
                   <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Amount Received</TableHead>
                 </TableRow>
               </TableHeader>
@@ -200,6 +201,9 @@ export function CustomerInvoiceDetailPage() {
                     <TableCell className="px-4 py-3 text-xs text-slate-600">{longDate(payment.date)}</TableCell>
                     <TableCell className="px-4 py-3 text-xs text-slate-600">
                       {payment.paymentAccount?.name ?? payment.paymentAccountId}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-slate-500">
+                      {payment.note ?? <span className="text-slate-300">—</span>}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-right text-xs font-bold tabular-nums text-emerald-700">
                       {inr(payment.amount)}

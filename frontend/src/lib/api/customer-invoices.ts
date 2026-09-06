@@ -7,6 +7,7 @@ export interface Payment {
   customerInvoiceId: string;
   amount: number;
   date: string;
+  note: string | null;
   paymentAccountId: string;
   paymentAccount?: { name: string };
   createdAt: string;
@@ -46,6 +47,7 @@ export interface RecordPaymentInput {
   amount: number;
   date: string;
   paymentAccountId: string;
+  note?: string;
 }
 
 export function listCustomerInvoices() {

@@ -187,14 +187,18 @@ export function VendorBillDetailPage() {
               <TableHeader className="bg-slate-50 border-b border-slate-200">
                 <TableRow className="border-slate-200 hover:bg-transparent">
                   <TableHead className="text-xs font-semibold text-slate-700 h-10 px-4">Payment Date</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-700 h-10 px-4">Note</TableHead>
                   <TableHead className="text-right text-xs font-semibold text-slate-700 h-10 px-4">Amount Paid</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bill.payments.map((payment) => (
                   <TableRow key={payment.id} className="border-slate-100 hover:bg-slate-50/80 transition-colors">
-                    <TableCell className="text-xs text-slate-900 font-medium px-4 py-3">{new Date(payment.date).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}</TableCell>
-                    <TableCell className="text-right text-xs font-bold text-emerald-700 tabular-nums px-4 py-3">₹{payment.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-xs text-slate-900 font-medium px-4 py-3">{shortDate(payment.date)}</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-slate-500">
+                      {payment.note ?? <span className="text-slate-300">—</span>}
+                    </TableCell>
+                    <TableCell className="text-right text-xs font-bold text-emerald-700 tabular-nums px-4 py-3">{inr(payment.amount)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

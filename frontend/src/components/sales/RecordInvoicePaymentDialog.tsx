@@ -39,6 +39,7 @@ export function RecordInvoicePaymentDialog({
   const [paymentAccountId, setPaymentAccountId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -48,6 +49,7 @@ export function RecordInvoicePaymentDialog({
       setPaymentAccountId("");
       setDate(new Date().toISOString().slice(0, 10));
       setAmount(String(amountDue));
+      setNote("");
       setError(null);
     }
   }, [open, amountDue]);
@@ -74,6 +76,7 @@ export function RecordInvoicePaymentDialog({
         amount: Number(amount),
         date,
         paymentAccountId,
+        note: note.trim() || undefined,
       });
       onRecorded();
       onOpenChange(false);
@@ -96,7 +99,7 @@ export function RecordInvoicePaymentDialog({
 
           <div className="flex flex-col gap-3.5 py-4">
             <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <span className="text-xs font-semibold text-slate-500">Amount Due:</span>
+              <span className="text-xs font-semibold text-slate-500">Payment Type: Receive · Amount Due:</span>
               <span className="font-display text-sm font-bold tabular-nums text-rose-600">
                 ₹{amountDue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
@@ -149,6 +152,19 @@ export function RecordInvoicePaymentDialog({
                 className="h-9 border-slate-200 bg-slate-50 text-xs tabular-nums focus:bg-white"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoice-payment-note" className="text-xs font-semibold text-slate-700">
+                Note
+              </Label>
+              <Input
+                id="invoice-payment-note"
+                placeholder="Optional reference or memo"
+                className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
               />
             </div>
 
