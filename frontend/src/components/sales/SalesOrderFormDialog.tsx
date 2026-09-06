@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AnalyticAccountSelect } from "@/components/shared/AnalyticAccountSelect";
+import { BudgetWarningNotice } from "@/components/shared/BudgetWarningNotice";
 import { listContacts, type Contact } from "@/lib/api/contacts";
 import { listProducts, type Product } from "@/lib/api/products";
 import {
@@ -54,6 +55,7 @@ export function SalesOrderFormDialog({
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [analyticAccountId, setAnalyticAccountId] = useState("");
   const [lines, setLines] = useState<LineRow[]>([emptyRow()]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -79,6 +81,7 @@ export function SalesOrderFormDialog({
         setAnalyticAccountId("");
         setLines([emptyRow()]);
       }
+      setWarnings([]);
       setError(null);
     }
   }, [open, editingOrder]);
@@ -124,11 +127,17 @@ export function SalesOrderFormDialog({
       };
       if (editingOrder) {
         await updateSalesOrder(editingOrder.id, input);
-      } else {
-        await createSalesOrder(input);
+        onSaved();
+        onOpenChange(false);
+        return;
       }
+      const created = await createSalesOrder(input);
       onSaved();
-      onOpenChange(false);
+      if (created.budgetWarnings && created.budgetWarnings.length > 0) {
+        setWarnings(created.budgetWarnings);
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -281,26 +290,41 @@ export function SalesOrderFormDialog({
                 {error}
               </div>
             )}
+
+            <BudgetWarningNotice warnings={warnings} title="Sales order saved — budget notice" />
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 border-slate-200 text-xs font-medium"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={saving || !customerId}
-              className="ml-2 h-9 bg-slate-900 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
-            >
-              {saving ? "Saving..." : editingOrder ? "Save Changes" : "Create Order"}
-            </Button>
+            {warnings.length > 0 ? (
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
+                onClick={() => onOpenChange(false)}
+              >
+                Done
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 border-slate-200 text-xs font-medium"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={saving || !customerId}
+                  className="ml-2 h-9 bg-slate-900 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+                >
+                  {saving ? "Saving..." : editingOrder ? "Save Changes" : "Create Order"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

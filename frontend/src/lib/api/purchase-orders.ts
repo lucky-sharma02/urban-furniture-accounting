@@ -45,7 +45,7 @@ export function getPurchaseOrder(id: string) {
 }
 
 export function createPurchaseOrder(input: CreatePurchaseOrderInput) {
-  return apiFetch<PurchaseOrder>("/purchase-orders", {
+  return apiFetch<PurchaseOrder & { budgetWarnings?: string[] }>("/purchase-orders", {
     method: "POST",
     body: JSON.stringify(input),
   });

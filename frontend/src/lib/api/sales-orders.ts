@@ -45,7 +45,7 @@ export function getSalesOrder(id: string) {
 }
 
 export function createSalesOrder(input: CreateSalesOrderInput) {
-  return apiFetch<SalesOrder>("/sales-orders", {
+  return apiFetch<SalesOrder & { budgetWarnings?: string[] }>("/sales-orders", {
     method: "POST",
     body: JSON.stringify(input),
   });

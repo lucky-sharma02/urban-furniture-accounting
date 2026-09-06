@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,12 +12,11 @@ import {
 import { downloadBudgetReportPdf, getBudgetReport, type BudgetReport } from "@/lib/api/reports";
 import { Download, Plus, PieChart as PieChartIcon, Target, TrendingUp, Wallet } from "lucide-react";
 
-const COMMITTED = "#94a3b8"; // slate-400
+const BALANCE = "#e2e8f0"; // slate-200
 const ON_TRACK = "#059669"; // emerald-600
 const OVER = "#e11d48"; // rose-600
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const inrShort = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const shortMonth = (d: string) => new Date(d).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 
 const STATUS_STYLES: Record<string, string> = {
@@ -97,17 +86,6 @@ export function BudgetReportPage() {
     };
   }, [trackedLines]);
 
-  const chartData = useMemo(
-    () =>
-      trackedLines.map((l) => ({
-        name: `${l.analyticAccountName} · ${l.type}`,
-        Committed: Math.round(l.committedAmount),
-        Achieved: Math.round(l.achievedAmount),
-        over: l.achievedAmount > l.committedAmount,
-      })),
-    [trackedLines],
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end gap-2">
@@ -154,85 +132,60 @@ export function BudgetReportPage() {
       ) : (
         <div className="space-y-6">
           {trackedLines.length > 0 && (
-            <>
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <StatCard icon={Target} label="Total Committed" value={inr(totals.committed)} tone="slate" />
-                <StatCard icon={Wallet} label="Total Achieved" value={inr(totals.achieved)} tone="emerald" />
-                <StatCard
-                  icon={TrendingUp}
-                  label="Amount to Achieve"
-                  value={inr(totals.amountToAchieve)}
-                  tone={totals.amountToAchieve < 0 ? "rose" : "slate"}
-                />
-                <StatCard
-                  icon={PieChartIcon}
-                  label="Achieved %"
-                  value={`${totals.pct.toFixed(1)}%`}
-                  tone={totals.pct > 100 ? "rose" : "emerald"}
-                  hint={totals.overCount > 0 ? `${totals.overCount} line(s) over` : "all within budget"}
-                />
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-card">
-                <h2 className="mb-4 font-display text-sm font-bold text-slate-900">
-                  Committed vs Achieved by Analytic Line
-                </h2>
-                <ResponsiveContainer width="100%" height={Math.max(220, chartData.length * 52)}>
-                  <BarChart
-                    data={chartData}
-                    layout="vertical"
-                    margin={{ top: 4, right: 24, bottom: 4, left: 16 }}
-                    barGap={4}
-                  >
-                    <CartesianGrid horizontal={false} stroke="#e2e8f0" />
-                    <XAxis
-                      type="number"
-                      tickFormatter={(v) => inrShort(Number(v) || 0)}
-                      tick={{ fontSize: 11, fill: "#64748b" }}
-                      stroke="#cbd5e1"
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={170}
-                      tick={{ fontSize: 11, fill: "#334155" }}
-                      stroke="#cbd5e1"
-                    />
-                    <Tooltip
-                      cursor={{ fill: "#f1f5f9" }}
-                      contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e2e8f0" }}
-                      formatter={(v) => inr(Number(v) || 0)}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="Committed" fill={COMMITTED} radius={[0, 3, 3, 0]} />
-                    <Bar dataKey="Achieved" fill={ON_TRACK} radius={[0, 3, 3, 0]}>
-                      {chartData.map((d, i) => (
-                        <Cell key={i} fill={d.over ? OVER : ON_TRACK} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatCard icon={Target} label="Total Committed" value={inr(totals.committed)} tone="slate" />
+              <StatCard icon={Wallet} label="Total Achieved" value={inr(totals.achieved)} tone="emerald" />
+              <StatCard
+                icon={TrendingUp}
+                label="Amount to Achieve"
+                value={inr(totals.amountToAchieve)}
+                tone={totals.amountToAchieve < 0 ? "rose" : "slate"}
+              />
+              <StatCard
+                icon={PieChartIcon}
+                label="Achieved %"
+                value={`${totals.pct.toFixed(1)}%`}
+                tone={totals.pct > 100 ? "rose" : "emerald"}
+                hint={totals.overCount > 0 ? `${totals.overCount} line(s) over` : "all within budget"}
+              />
+            </div>
           )}
 
-          {budgets.map((budget) => (
+          {budgets.map((budget) => {
+            const tracked = budget.status === "Confirmed" || budget.status === "Revised";
+            return (
             <div key={budget.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card">
               <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-display text-sm font-bold text-slate-900">{budget.name}</h3>
-                    <Badge
-                      variant="outline"
-                      className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[budget.status] ?? ""}`}
-                    >
-                      {budget.status}
-                    </Badge>
+                <div className="flex items-center gap-4">
+                  {tracked && (
+                    <BudgetDonut
+                      achieved={budget.totals.achieved}
+                      committed={budget.totals.committed}
+                    />
+                  )}
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-display text-sm font-bold text-slate-900">{budget.name}</h3>
+                      <Badge
+                        variant="outline"
+                        className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[budget.status] ?? ""}`}
+                      >
+                        {budget.status}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 font-mono text-[11px] text-slate-500">
+                      {shortMonth(budget.periodStart)} – {shortMonth(budget.periodEnd)}
+                      {budget.responsibleName ? ` · ${budget.responsibleName}` : ""}
+                    </p>
+                    {budget.revisedFromName && (
+                      <p className="mt-0.5 text-[11px] text-amber-700">
+                        Revision of “{budget.revisedFromName}”
+                      </p>
+                    )}
+                    {budget.status === "Revised" && (
+                      <p className="mt-0.5 text-[11px] text-slate-400">Superseded by a newer revision</p>
+                    )}
                   </div>
-                  <p className="mt-0.5 font-mono text-[11px] text-slate-500">
-                    {shortMonth(budget.periodStart)} – {shortMonth(budget.periodEnd)}
-                    {budget.responsibleName ? ` · ${budget.responsibleName}` : ""}
-                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {budget.status === "Draft" && (
@@ -296,7 +249,6 @@ export function BudgetReportPage() {
                 </TableHeader>
                 <TableBody>
                   {budget.lines.map((line) => {
-                    const tracked = budget.status === "Confirmed" || budget.status === "Revised";
                     const over = line.achievedAmount > line.committedAmount;
                     return (
                       <TableRow key={line.id} className="border-slate-100">
@@ -364,9 +316,7 @@ export function BudgetReportPage() {
                       {inr(budget.totals.committed)}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-right text-xs font-bold tabular-nums text-slate-900">
-                      {budget.status === "Confirmed" || budget.status === "Revised"
-                        ? inr(budget.totals.achieved)
-                        : "—"}
+                      {tracked ? inr(budget.totals.achieved) : "—"}
                     </TableCell>
                     <TableCell className="px-4 py-3" />
                     <TableCell
@@ -380,9 +330,55 @@ export function BudgetReportPage() {
                 </TableFooter>
               </Table>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
+    </div>
+  );
+}
+
+// Achieved vs Balance donut, matching the wireframe's per-budget pie.
+function BudgetDonut({ achieved, committed }: { achieved: number; committed: number }) {
+  const over = achieved > committed;
+  const balance = Math.max(committed - achieved, 0);
+  const data = over
+    ? [{ name: "Achieved", value: achieved }]
+    : [
+        { name: "Achieved", value: achieved },
+        { name: "Balance", value: balance },
+      ];
+  const pct = committed > 0 ? Math.round((achieved / committed) * 100) : 0;
+  return (
+    <div className="relative h-16 w-16 shrink-0">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            innerRadius={20}
+            outerRadius={30}
+            startAngle={90}
+            endAngle={-270}
+            stroke="none"
+            isAnimationActive={false}
+          >
+            <Cell fill={over ? OVER : ON_TRACK} />
+            {!over && <Cell fill={BALANCE} />}
+          </Pie>
+          <Tooltip
+            contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e2e8f0" }}
+            formatter={(v, n) => [`₹${(Number(v) || 0).toLocaleString("en-IN")}`, String(n)]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <span
+        className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums ${
+          over ? "text-rose-600" : "text-slate-700"
+        }`}
+      >
+        {pct}%
+      </span>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AnalyticAccountSelect } from "@/components/shared/AnalyticAccountSelect";
+import { BudgetWarningNotice } from "@/components/shared/BudgetWarningNotice";
 import { listContacts, type Contact } from "@/lib/api/contacts";
 import { createVendorBill } from "@/lib/api/vendor-bills";
 import { firstError, isAmount, isIsoDate } from "@/lib/validation";
@@ -151,16 +152,7 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
               </div>
             )}
 
-            {warnings.length > 0 && (
-              <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-                <p className="mb-1 font-semibold">Bill recorded — budget notice</p>
-                <ul className="list-disc space-y-0.5 pl-4">
-                  {warnings.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <BudgetWarningNotice warnings={warnings} title="Bill recorded — budget notice" />
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">

@@ -46,6 +46,8 @@ export interface BudgetReport {
   responsibleId: string | null;
   responsibleName: string | null;
   revisedFromId: string | null;
+  revisedFromName: string | null;
+  revisedToId: string | null;
   lines: BudgetReportLine[];
   totals: { committed: number; achieved: number; amountToAchieve: number };
 }
