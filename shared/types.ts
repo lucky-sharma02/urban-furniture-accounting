@@ -13,6 +13,8 @@ export type AccountType =
 
 export type ContactType = "Vendor" | "Customer" | "Both";
 
+export type ProductType = "Goods" | "Service" | "Combo";
+
 export type JournalType = "Sales" | "Purchase" | "Bank" | "Cash";
 
 export type NormalBalanceSide = "Debit" | "Credit";

@@ -1,8 +1,45 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
+import { formatRef } from "../lib/format-ref";
 import { postJournalEntry, UnbalancedJournalEntryError } from "../lib/journal-engine";
+import { prisma } from "../lib/prisma";
 
 const router = Router();
+
+// List view: Date | Number | Partner | Journal | Total | Status.
+// `total` is the sum of the debit column (== credit column for a balanced entry).
+router.get("/", async (req, res) => {
+  const where = typeof req.query.journalId === "string" ? { journalId: req.query.journalId } : {};
+
+  const entries = await prisma.journalEntry.findMany({
+    where,
+    include: {
+      journal: { select: { name: true, type: true } },
+      lines: { include: { partner: { select: { name: true } } } },
+    },
+    orderBy: [{ date: "desc" }, { refNumber: "desc" }],
+  });
+
+  res.json(
+    entries.map((entry) => {
+      const total = entry.lines.reduce((sum, l) => sum + l.debit.toNumber(), 0);
+      const partner = entry.lines.find((l) => l.partner)?.partner?.name ?? null;
+      return {
+        id: entry.id,
+        refNumber: formatRef("JE", entry.refNumber, entry.date),
+        date: entry.date.toISOString(),
+        journalName: entry.journal.name,
+        journalType: entry.journal.type,
+        sourceType: entry.sourceType,
+        sourceId: entry.sourceId,
+        reference: entry.reference,
+        partner,
+        total,
+        status: entry.status,
+      };
+    }),
+  );
+});
 
 interface LineInput {
   accountId: string;
@@ -52,6 +89,7 @@ router.post("/", async (req, res) => {
 
     res.status(201).json({
       ...entry,
+      refNumber: formatRef("JE", entry.refNumber, entry.date),
       lines: entry.lines.map((line) => ({
         ...line,
         debit: line.debit.toNumber(),

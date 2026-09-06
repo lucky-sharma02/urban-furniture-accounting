@@ -9,10 +9,16 @@ function isNotFoundError(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
 }
 
+function normalizeDefaultAccountId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 router.get("/", async (req, res) => {
   const includeArchived = req.query.includeArchived === "true";
   const journals = await prisma.journal.findMany({
     where: includeArchived ? undefined : { isArchived: false },
+    include: { defaultAccount: { select: { id: true, name: true } } },
     orderBy: { name: "asc" },
   });
   res.json(journals);
@@ -20,6 +26,7 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   const { name, type } = req.body;
+  const defaultAccountId = normalizeDefaultAccountId(req.body.defaultAccountId);
 
   if (typeof name !== "string" || name.trim() === "") {
     return res.status(400).json({ error: "name is required" });
@@ -28,12 +35,16 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: `type must be one of: ${JOURNAL_TYPES.join(", ")}` });
   }
 
-  const journal = await prisma.journal.create({ data: { name, type } });
+  const journal = await prisma.journal.create({
+    data: { name, type, defaultAccountId: defaultAccountId ?? null },
+    include: { defaultAccount: { select: { id: true, name: true } } },
+  });
   res.status(201).json(journal);
 });
 
 router.put("/:id", async (req, res) => {
   const { name, type } = req.body;
+  const defaultAccountId = normalizeDefaultAccountId(req.body.defaultAccountId);
 
   if (type !== undefined && !JOURNAL_TYPES.includes(type)) {
     return res.status(400).json({ error: `type must be one of: ${JOURNAL_TYPES.join(", ")}` });
@@ -45,7 +56,9 @@ router.put("/:id", async (req, res) => {
       data: {
         ...(name !== undefined ? { name } : {}),
         ...(type !== undefined ? { type } : {}),
+        ...(defaultAccountId !== undefined ? { defaultAccountId } : {}),
       },
+      include: { defaultAccount: { select: { id: true, name: true } } },
     });
     res.json(journal);
   } catch (err) {

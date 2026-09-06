@@ -16,6 +16,8 @@ export function formatRef(prefix: string, refNumber: number, date?: Date | strin
       return `Bill/${year}/${n4}`;
     case "INV":
       return `INV/${year}/${n4}`;
+    case "JE":
+      return `JE/${year}/${n4}`;
     default:
       return `${prefix}-${n4}`;
   }

@@ -28,6 +28,11 @@ function isValidPrice(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
+const PRODUCT_TYPES = ["Goods", "Service", "Combo"] as const;
+function isValidType(value: unknown): value is (typeof PRODUCT_TYPES)[number] {
+  return typeof value === "string" && (PRODUCT_TYPES as readonly string[]).includes(value);
+}
+
 router.get("/", async (req, res) => {
   const includeArchived = req.query.includeArchived === "true";
   const products = await prisma.product.findMany({
@@ -38,13 +43,16 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { name, category, salesPrice, purchasePrice } = req.body;
+  const { name, category, salesPrice, purchasePrice, type } = req.body;
 
   if (typeof name !== "string" || name.trim() === "") {
     return res.status(400).json({ error: "name is required" });
   }
   if (typeof category !== "string" || category.trim() === "") {
     return res.status(400).json({ error: "category is required" });
+  }
+  if (type !== undefined && !isValidType(type)) {
+    return res.status(400).json({ error: "type must be Goods, Service or Combo" });
   }
   if (!isValidPrice(salesPrice)) {
     return res.status(400).json({ error: "salesPrice must be a non-negative number" });
@@ -55,7 +63,7 @@ router.post("/", async (req, res) => {
 
   try {
     const product = await prisma.product.create({
-      data: { name, category, salesPrice, purchasePrice },
+      data: { name, category, salesPrice, purchasePrice, ...(isValidType(type) ? { type } : {}) },
     });
     res.status(201).json(serializeProduct(product));
   } catch (err) {
@@ -67,13 +75,16 @@ router.post("/", async (req, res) => {
 });
 
 router.put("/:id", async (req, res) => {
-  const { name, category, salesPrice, purchasePrice } = req.body;
+  const { name, category, salesPrice, purchasePrice, type } = req.body;
 
   if (salesPrice !== undefined && !isValidPrice(salesPrice)) {
     return res.status(400).json({ error: "salesPrice must be a non-negative number" });
   }
   if (purchasePrice !== undefined && !isValidPrice(purchasePrice)) {
     return res.status(400).json({ error: "purchasePrice must be a non-negative number" });
+  }
+  if (type !== undefined && !isValidType(type)) {
+    return res.status(400).json({ error: "type must be Goods, Service or Combo" });
   }
 
   try {
@@ -82,6 +93,7 @@ router.put("/:id", async (req, res) => {
       data: {
         ...(name !== undefined ? { name } : {}),
         ...(category !== undefined ? { category } : {}),
+        ...(isValidType(type) ? { type } : {}),
         ...(salesPrice !== undefined ? { salesPrice } : {}),
         ...(purchasePrice !== undefined ? { purchasePrice } : {}),
       },

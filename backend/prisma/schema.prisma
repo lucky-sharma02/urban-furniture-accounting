@@ -25,6 +25,12 @@ enum ContactType {
   Both
 }
 
+enum ProductType {
+  Goods
+  Service
+  Combo
+}
+
 enum JournalType {
   Sales
   Purchase
@@ -119,6 +125,11 @@ model Contact {
   email             String             @unique
   phone             String?
   address           String?
+  street            String?
+  city              String?
+  state             String?
+  country           String?
+  pincode           String?
   isArchived        Boolean            @default(false)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -136,6 +147,7 @@ model Product {
   refNumber          Int                 @unique @default(autoincrement())
   name               String              @unique
   category           String
+  type               ProductType         @default(Goods)
   salesPrice         Decimal             @db.Decimal(12, 2)
   purchasePrice      Decimal             @db.Decimal(12, 2)
   isArchived         Boolean             @default(false)
@@ -156,20 +168,24 @@ model Account {
   updatedAt         DateTime           @updatedAt
   journalEntryLines JournalEntryLine[]
   payments          Payment[]
+  defaultForJournals Journal[]
 }
 
 model Journal {
-  id             String         @id @default(cuid())
-  name           String         @unique
-  type           JournalType
-  isArchived     Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  journalEntries JournalEntry[]
+  id               String         @id @default(cuid())
+  name             String         @unique
+  type             JournalType
+  defaultAccountId String?
+  defaultAccount   Account?       @relation(fields: [defaultAccountId], references: [id])
+  isArchived       Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  journalEntries   JournalEntry[]
 }
 
 model JournalEntry {
   id         String                 @id @default(cuid())
+  refNumber  Int                    @unique @default(autoincrement())
   journalId  String
   journal    Journal                @relation(fields: [journalId], references: [id])
   date       DateTime

@@ -4,6 +4,20 @@ import { prisma } from "../lib/prisma";
 
 const router = Router();
 const CONTACT_TYPES = Object.values(ContactType);
+const ADDRESS_FIELDS = ["street", "city", "state", "country", "pincode"] as const;
+
+// Pick the structured-address fields present in the body, coercing "" to null.
+function addressData(body: Record<string, unknown>) {
+  const data: Record<string, string | null> = {};
+  for (const field of ADDRESS_FIELDS) {
+    if (body[field] !== undefined) {
+      data[field] = typeof body[field] === "string" && (body[field] as string).trim() !== ""
+        ? (body[field] as string).trim()
+        : null;
+    }
+  }
+  return data;
+}
 
 function isNotFoundError(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
@@ -37,7 +51,7 @@ router.post("/", async (req, res) => {
 
   try {
     const contact = await prisma.contact.create({
-      data: { name, type, email, phone, address },
+      data: { name, type, email, phone, address, ...addressData(req.body ?? {}) },
     });
     res.status(201).json(contact);
   } catch (err) {
@@ -64,6 +78,7 @@ router.put("/:id", async (req, res) => {
         ...(email !== undefined ? { email } : {}),
         ...(phone !== undefined ? { phone } : {}),
         ...(address !== undefined ? { address } : {}),
+        ...addressData(req.body ?? {}),
       },
     });
     res.json(contact);
