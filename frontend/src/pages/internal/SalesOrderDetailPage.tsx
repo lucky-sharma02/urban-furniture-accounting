@@ -3,17 +3,18 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SalesOrderFormDialog } from "@/components/sales/SalesOrderFormDialog";
 import { BudgetWarningNotice } from "@/components/shared/BudgetWarningNotice";
+import { DraftOrderLines } from "@/components/shared/DraftOrderLines";
 import {
   confirmSalesOrder,
   generateInvoiceFromSalesOrder,
   getSalesOrder,
+  updateSalesOrder,
   type SalesOrder,
   type SalesOrderLine,
 } from "@/lib/api/sales-orders";
 import type { CustomerInvoice } from "@/lib/api/customer-invoices";
-import { Pencil, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 interface SalesOrderDetail extends SalesOrder {
   customer?: { name: string };
@@ -33,7 +34,6 @@ export function SalesOrderDetailPage() {
   const navigate = useNavigate();
   const [so, setSo] = useState<SalesOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editOpen, setEditOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [generated, setGenerated] = useState<{ invoiceId: string; warnings: string[] } | null>(null);
   const [confirmWarnings, setConfirmWarnings] = useState<string[]>([]);
@@ -110,26 +110,15 @@ export function SalesOrderDetailPage() {
         {so.status !== "Invoiced" && (
           <div className="flex flex-wrap gap-2">
             {so.status === "Draft" && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditOpen(true)}
-                  className="h-9 gap-1.5 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={handleConfirm}
-                  className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {busy ? "Working..." : "Confirm"}
-                </Button>
-              </>
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={handleConfirm}
+                className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {busy ? "Working..." : "Confirm"}
+              </Button>
             )}
             {so.status === "Confirmed" && (
               <Button
@@ -147,8 +136,6 @@ export function SalesOrderDetailPage() {
       </div>
 
       <BudgetWarningNotice warnings={confirmWarnings} title="Sales order confirmed — budget notice" />
-
-      <SalesOrderFormDialog open={editOpen} onOpenChange={setEditOpen} onSaved={load} editingOrder={so} />
 
       {generated && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 shadow-card">
@@ -169,10 +156,12 @@ export function SalesOrderDetailPage() {
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Order Date</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{longDate(so.date)}</p>
-        </div>
+        {so.status !== "Draft" && (
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Order Date</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{longDate(so.date)}</p>
+          </div>
+        )}
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Net Total (ex-GST)</p>
           <p className="mt-1 font-display text-base font-bold tabular-nums text-slate-900">{inr(total)}</p>
@@ -197,35 +186,64 @@ export function SalesOrderDetailPage() {
       </div>
 
       <div className="space-y-3">
-        <h2 className="font-display text-sm font-bold text-slate-900">Order Lines</h2>
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow className="border-slate-200 hover:bg-transparent">
-                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Product</TableHead>
-                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Budget Analytics</TableHead>
-                <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Qty</TableHead>
-                <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Unit Price</TableHead>
-                <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Line Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {so.lines.map((line) => (
-                <TableRow key={line.id} className="border-slate-100">
-                  <TableCell className="px-4 py-3 text-xs text-slate-900">{line.product?.name ?? line.productId}</TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-slate-600">
-                    {line.analyticAccount?.name ?? <span className="text-slate-400">—</span>}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{line.quantity}</TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{inr(line.unitPrice)}</TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-900">
-                    {inr(line.quantity * line.unitPrice)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-sm font-bold text-slate-900">Order Lines</h2>
+          {so.status === "Draft" && (
+            <span className="text-[11px] text-slate-400">Editable while Draft</span>
+          )}
         </div>
+        {so.status === "Draft" ? (
+          <DraftOrderLines
+            kind="sales"
+            initialPartnerId={so.customerId}
+            initialDate={so.date.slice(0, 10)}
+            initialLines={so.lines.map((l) => ({
+              key: l.id,
+              id: l.id,
+              productId: l.productId,
+              quantity: l.quantity,
+              unitPrice: l.unitPrice,
+              analyticAccountId: l.analyticAccountId,
+            }))}
+            onSave={(snap) =>
+              updateSalesOrder(so!.id, {
+                customerId: snap.partnerId,
+                date: snap.date,
+                lines: snap.lines,
+              })
+            }
+            onSaved={load}
+          />
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="border-slate-200 hover:bg-transparent">
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Product</TableHead>
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Budget Analytics</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Qty</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Unit Price</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Line Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {so.lines.map((line) => (
+                  <TableRow key={line.id} className="border-slate-100">
+                    <TableCell className="px-4 py-3 text-xs text-slate-900">{line.product?.name ?? line.productId}</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-slate-600">
+                      {line.analyticAccount?.name ?? <span className="text-slate-400">—</span>}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{line.quantity}</TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{inr(line.unitPrice)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-900">
+                      {inr(line.quantity * line.unitPrice)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       {so.invoices.length > 0 && (

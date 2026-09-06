@@ -3,17 +3,18 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PurchaseOrderFormDialog } from "@/components/purchases/PurchaseOrderFormDialog";
 import { BudgetWarningNotice } from "@/components/shared/BudgetWarningNotice";
+import { DraftOrderLines } from "@/components/shared/DraftOrderLines";
 import {
   confirmPurchaseOrder,
   convertPurchaseOrderToBill,
   getPurchaseOrder,
+  updatePurchaseOrder,
   type PurchaseOrder,
   type PurchaseOrderLine,
 } from "@/lib/api/purchase-orders";
 import type { VendorBill } from "@/lib/api/vendor-bills";
-import { Pencil, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 interface PurchaseOrderDetail extends PurchaseOrder {
   vendor?: { name: string };
@@ -33,7 +34,6 @@ export function PurchaseOrderDetailPage() {
   const navigate = useNavigate();
   const [po, setPo] = useState<PurchaseOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editOpen, setEditOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [conversion, setConversion] = useState<{ billId: string; warnings: string[] } | null>(null);
   const [confirmWarnings, setConfirmWarnings] = useState<string[]>([]);
@@ -110,26 +110,15 @@ export function PurchaseOrderDetailPage() {
         {po.status !== "Billed" && (
           <div className="flex flex-wrap gap-2">
             {po.status === "Draft" && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditOpen(true)}
-                  className="h-9 gap-1.5 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={handleConfirm}
-                  className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {busy ? "Working..." : "Confirm"}
-                </Button>
-              </>
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={handleConfirm}
+                className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {busy ? "Working..." : "Confirm"}
+              </Button>
             )}
             {po.status === "Confirmed" && (
               <Button
@@ -145,8 +134,6 @@ export function PurchaseOrderDetailPage() {
           </div>
         )}
       </div>
-
-      <PurchaseOrderFormDialog open={editOpen} onOpenChange={setEditOpen} onSaved={load} editingOrder={po} />
 
       <BudgetWarningNotice warnings={confirmWarnings} title="Purchase order confirmed — budget notice" />
 
@@ -169,10 +156,12 @@ export function PurchaseOrderDetailPage() {
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Order Date</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{longDate(po.date)}</p>
-        </div>
+        {po.status !== "Draft" && (
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Order Date</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{longDate(po.date)}</p>
+          </div>
+        )}
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Order Total</p>
           <p className="mt-1 font-display text-base font-bold tabular-nums text-slate-900">{inr(total)}</p>
@@ -197,35 +186,64 @@ export function PurchaseOrderDetailPage() {
       </div>
 
       <div className="space-y-3">
-        <h2 className="font-display text-sm font-bold text-slate-900">Order Lines</h2>
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow className="border-slate-200 hover:bg-transparent">
-                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Product</TableHead>
-                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Budget Analytics</TableHead>
-                <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Qty</TableHead>
-                <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Unit Price</TableHead>
-                <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Line Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {po.lines.map((line) => (
-                <TableRow key={line.id} className="border-slate-100">
-                  <TableCell className="px-4 py-3 text-xs text-slate-900">{line.product?.name ?? line.productId}</TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-slate-600">
-                    {line.analyticAccount?.name ?? <span className="text-slate-400">—</span>}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{line.quantity}</TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{inr(line.unitPrice)}</TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-900">
-                    {inr(line.quantity * line.unitPrice)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-sm font-bold text-slate-900">Order Lines</h2>
+          {po.status === "Draft" && (
+            <span className="text-[11px] text-slate-400">Editable while Draft</span>
+          )}
         </div>
+        {po.status === "Draft" ? (
+          <DraftOrderLines
+            kind="purchase"
+            initialPartnerId={po.vendorId}
+            initialDate={po.date.slice(0, 10)}
+            initialLines={po.lines.map((l) => ({
+              key: l.id,
+              id: l.id,
+              productId: l.productId,
+              quantity: l.quantity,
+              unitPrice: l.unitPrice,
+              analyticAccountId: l.analyticAccountId,
+            }))}
+            onSave={(snap) =>
+              updatePurchaseOrder(po!.id, {
+                vendorId: snap.partnerId,
+                date: snap.date,
+                lines: snap.lines,
+              })
+            }
+            onSaved={load}
+          />
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="border-slate-200 hover:bg-transparent">
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Product</TableHead>
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Budget Analytics</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Qty</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Unit Price</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Line Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {po.lines.map((line) => (
+                  <TableRow key={line.id} className="border-slate-100">
+                    <TableCell className="px-4 py-3 text-xs text-slate-900">{line.product?.name ?? line.productId}</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-slate-600">
+                      {line.analyticAccount?.name ?? <span className="text-slate-400">—</span>}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{line.quantity}</TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{inr(line.unitPrice)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-900">
+                      {inr(line.quantity * line.unitPrice)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       {po.vendorBills.length > 0 && (
