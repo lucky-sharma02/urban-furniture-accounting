@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePaginated } from "@/hooks/use-paginated";
 import { useAuth } from "@/lib/auth-context";
 import { listCustomerInvoices, type CustomerInvoice } from "@/lib/api/customer-invoices";
 import { Landmark } from "lucide-react";
@@ -37,6 +39,8 @@ export function CustomerInvoicesPage() {
     );
   }, [invoices, search]);
 
+  const pag = usePaginated(filtered, 25, search);
+
   return (
     <div className="space-y-6">
       {isPortal && (
@@ -50,7 +54,7 @@ export function CustomerInvoicesPage() {
 
       {loading ? (
         <div className="py-12 text-center text-xs text-slate-400">Loading customer invoices...</div>
-      ) : filtered.length === 0 ? (
+      ) : pag.total === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-200 bg-white p-12 text-center shadow-card">
           <Landmark className="mx-auto mb-2 h-8 w-8 text-slate-400" />
           <p className="text-sm font-semibold text-slate-900">No customer invoices found</p>
@@ -70,7 +74,7 @@ export function CustomerInvoicesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((invoice) => (
+              {pag.pageItems.map((invoice) => (
                 <TableRow
                   key={invoice.id}
                   className="cursor-pointer border-slate-100 transition-colors hover:bg-slate-50"
@@ -114,6 +118,11 @@ export function CustomerInvoicesPage() {
               ))}
             </TableBody>
           </Table>
+          {pag.totalPages > 1 && (
+            <div className="border-t border-slate-100 px-4 py-3">
+              <Pagination pagination={pag} />
+            </div>
+          )}
         </div>
       )}
     </div>

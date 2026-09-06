@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePaginated } from "@/hooks/use-paginated";
 import { ProductFormDialog } from "@/components/master-data/ProductFormDialog";
 import { archiveProduct, listProducts, type Product } from "@/lib/api/products";
 import { Plus, LayoutGrid, List, Edit, Archive, Package, Tag } from "lucide-react";
@@ -58,6 +60,8 @@ export function ProductsPage() {
     const matchesCategory = selectedCategory === "ALL" || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const pag = usePaginated(filteredProducts, 25, search + selectedCategory);
 
   return (
     <div className="space-y-6">
@@ -147,15 +151,16 @@ export function ProductsPage() {
 
       {loading ? (
         <div className="py-12 text-center text-xs text-slate-400">Loading products catalog...</div>
-      ) : filteredProducts.length === 0 ? (
+      ) : pag.total === 0 ? (
         <div className="p-12 text-center rounded-lg border border-dashed border-slate-200 bg-white shadow-card">
           <Package className="h-8 w-8 text-slate-400 mx-auto mb-2" />
           <p className="text-sm font-semibold text-slate-900">No products found</p>
           <p className="text-xs text-slate-500 mt-1">Add your furniture items to track prices, procurement costs and estimated margins.</p>
         </div>
       ) : view === "grid" ? (
+        <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredProducts.map((product) => {
+          {pag.pageItems.map((product) => {
             const margin =
               product.salesPrice > 0
                 ? (((product.salesPrice - product.purchasePrice) / product.salesPrice) * 100).toFixed(1)
@@ -204,6 +209,8 @@ export function ProductsPage() {
             );
           })}
         </div>
+        {pag.totalPages > 1 && <Pagination pagination={pag} />}
+        </div>
       ) : (
         /* Table List View */
         <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-card">
@@ -220,7 +227,7 @@ export function ProductsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => {
+              {pag.pageItems.map((product) => {
                 const margin =
                   product.salesPrice > 0
                     ? (((product.salesPrice - product.purchasePrice) / product.salesPrice) * 100).toFixed(1)
@@ -258,6 +265,11 @@ export function ProductsPage() {
               })}
             </TableBody>
           </Table>
+          {pag.totalPages > 1 && (
+            <div className="border-t border-slate-100 px-4 py-3">
+              <Pagination pagination={pag} />
+            </div>
+          )}
         </div>
       )}
     </div>

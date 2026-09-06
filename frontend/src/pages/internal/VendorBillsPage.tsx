@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePaginated } from "@/hooks/use-paginated";
 import { VendorBillFormDialog } from "@/components/purchases/VendorBillFormDialog";
 import { listVendorBills, type VendorBill } from "@/lib/api/vendor-bills";
 import { Plus } from "lucide-react";
@@ -41,6 +43,8 @@ export function VendorBillsPage() {
     );
   }, [vendorBills, search]);
 
+  const pag = usePaginated(filtered, 25, search);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -58,7 +62,7 @@ export function VendorBillsPage() {
           <div className="inline-block w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin mb-3"></div>
           <p>Loading vendor bills...</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : pag.total === 0 ? (
         <div className="p-12 text-center rounded-lg border border-dashed border-slate-300 bg-white shadow-card">
           <p className="text-sm font-semibold text-slate-800">No vendor bills found</p>
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Create a new bill directly or convert a purchase order into a bill to start tracking supplier payables.</p>
@@ -80,7 +84,7 @@ export function VendorBillsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((bill) => (
+              {pag.pageItems.map((bill) => (
                 <TableRow
                   key={bill.id}
                   className="cursor-pointer border-slate-100 hover:bg-slate-50/80 transition-colors"
@@ -120,6 +124,11 @@ export function VendorBillsPage() {
               ))}
             </TableBody>
           </Table>
+          {pag.totalPages > 1 && (
+            <div className="border-t border-slate-100 px-4 py-3">
+              <Pagination pagination={pag} />
+            </div>
+          )}
         </div>
       )}
     </div>

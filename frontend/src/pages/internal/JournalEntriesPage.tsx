@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePaginated } from "@/hooks/use-paginated";
 import { listJournalEntries, type JournalEntryListRow } from "@/lib/api/journal-entries";
 import { FileSpreadsheet, Plus } from "lucide-react";
 
@@ -38,6 +40,7 @@ export function JournalEntriesPage() {
     );
   }, [rows, search]);
 
+  const pag = usePaginated(filtered, 25, search + journalId);
   const journalName = rows[0]?.journalName;
 
   return (
@@ -71,7 +74,7 @@ export function JournalEntriesPage() {
 
       {loading ? (
         <div className="py-12 text-center text-xs text-slate-400">Loading journal entries...</div>
-      ) : filtered.length === 0 ? (
+      ) : pag.total === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-200 bg-white p-12 text-center shadow-card">
           <FileSpreadsheet className="mx-auto mb-2 h-8 w-8 text-slate-400" />
           <p className="text-sm font-semibold text-slate-900">No journal entries</p>
@@ -95,7 +98,7 @@ export function JournalEntriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((row) => (
+                {pag.pageItems.map((row) => (
                   <TableRow key={row.id} className="border-slate-100">
                     <TableCell className="px-4 py-3 text-xs text-slate-600">{shortDate(row.date)}</TableCell>
                     <TableCell className="px-4 py-3 font-mono text-xs font-medium text-slate-900">
@@ -125,6 +128,11 @@ export function JournalEntriesPage() {
               </TableBody>
             </Table>
           </div>
+          {pag.totalPages > 1 && (
+            <div className="border-t border-slate-100 px-4 py-3">
+              <Pagination pagination={pag} />
+            </div>
+          )}
         </div>
       )}
     </div>
