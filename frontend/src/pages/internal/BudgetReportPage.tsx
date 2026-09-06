@@ -230,7 +230,7 @@ export function BudgetReportPage() {
                       className="h-8 px-3 text-xs font-medium text-rose-600 hover:bg-rose-50"
                       onClick={() => runAction(budget.id, cancelBudget)}
                     >
-                      Cancel
+                      {budget.revisedFromName ? "Discard Revision" : "Cancel"}
                     </Button>
                   )}
                 </div>

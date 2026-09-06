@@ -53,7 +53,9 @@ export function confirmBudget(id: string) {
 }
 
 export function cancelBudget(id: string) {
-  return apiFetch<{ id: string; status: string }>(`/budgets/${id}/cancel`, { method: "POST" });
+  return apiFetch<{ id: string; status: string; restoredBudgetId?: string }>(`/budgets/${id}/cancel`, {
+    method: "POST",
+  });
 }
 
 export function reviseBudget(id: string) {
