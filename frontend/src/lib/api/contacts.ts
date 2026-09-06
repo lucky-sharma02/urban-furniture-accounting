@@ -8,6 +8,11 @@ export interface Contact {
   email: string;
   phone: string | null;
   address: string | null;
+  street: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  pincode: string | null;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -19,6 +24,11 @@ export interface ContactInput {
   email: string;
   phone?: string;
   address?: string;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  pincode?: string | null;
 }
 
 export function listContacts(includeArchived = false) {

@@ -211,6 +211,7 @@ export function ProductsPage() {
             <TableHeader className="bg-slate-50">
               <TableRow className="border-slate-200">
                 <TableHead className="text-xs font-semibold text-slate-700">Product Name</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700">Type</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-700">Category</TableHead>
                 <TableHead className="text-right text-xs font-semibold text-slate-700">Sales Price</TableHead>
                 <TableHead className="text-right text-xs font-semibold text-slate-700">Cost Price</TableHead>
@@ -227,6 +228,7 @@ export function ProductsPage() {
                 return (
                   <TableRow key={product.id} className="border-slate-100 hover:bg-slate-50 transition-colors">
                     <TableCell className="font-medium text-xs text-slate-900">{product.name}</TableCell>
+                    <TableCell className="text-xs text-slate-600">{product.type}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 font-medium">
                         {product.category}

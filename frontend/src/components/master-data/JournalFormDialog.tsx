@@ -17,10 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { listAccounts, type Account } from "@/lib/api/accounts";
 import { createJournal, updateJournal, type Journal } from "@/lib/api/journals";
 import { isNonEmpty } from "@/lib/validation";
 
 const JOURNAL_TYPES: JournalType[] = ["Sales", "Purchase", "Bank", "Cash"];
+const NO_ACCOUNT = "__none__";
 
 interface JournalFormDialogProps {
   open: boolean;
@@ -29,16 +31,22 @@ interface JournalFormDialogProps {
   onSaved: () => void;
 }
 
-const emptyForm = { name: "", type: "Sales" as JournalType };
+const emptyForm = { name: "", type: "Sales" as JournalType, defaultAccountId: "" };
 
 export function JournalFormDialog({ open, onOpenChange, journal, onSaved }: JournalFormDialogProps) {
   const [form, setForm] = useState(emptyForm);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setForm(journal ? { name: journal.name, type: journal.type } : emptyForm);
+      listAccounts().then(setAccounts);
+      setForm(
+        journal
+          ? { name: journal.name, type: journal.type, defaultAccountId: journal.defaultAccountId ?? "" }
+          : emptyForm,
+      );
       setError(null);
     }
   }, [open, journal]);
@@ -54,10 +62,15 @@ export function JournalFormDialog({ open, onOpenChange, journal, onSaved }: Jour
     setSaving(true);
     setError(null);
     try {
+      const input = {
+        name: form.name,
+        type: form.type,
+        defaultAccountId: form.defaultAccountId || null,
+      };
       if (journal) {
-        await updateJournal(journal.id, form);
+        await updateJournal(journal.id, input);
       } else {
-        await createJournal(form);
+        await createJournal(input);
       }
       onSaved();
       onOpenChange(false);
@@ -105,6 +118,31 @@ export function JournalFormDialog({ open, onOpenChange, journal, onSaved }: Jour
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="default-account" className="text-xs font-semibold text-slate-700">
+                Default Account
+              </Label>
+              <Select
+                value={form.defaultAccountId || NO_ACCOUNT}
+                onValueChange={(v) => setForm({ ...form, defaultAccountId: v === NO_ACCOUNT ? "" : v })}
+              >
+                <SelectTrigger id="default-account" className="h-9 border-slate-200 bg-slate-50 text-xs">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent className="border border-slate-200 bg-white shadow-card">
+                  <SelectItem value={NO_ACCOUNT} className="text-xs text-slate-500">
+                    None
+                  </SelectItem>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id} className="text-xs text-slate-700">
+                      {account.name} ({account.type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-slate-400">Suggested contra account for entries in this journal.</p>
             </div>
 
             {error && (

@@ -38,6 +38,26 @@ export interface JournalEntry {
   updatedAt: string;
 }
 
+export interface JournalEntryListRow {
+  id: string;
+  refNumber: string;
+  date: string;
+  journalName: string;
+  journalType: string;
+  sourceType: JournalEntrySourceType;
+  sourceId: string;
+  reference: string | null;
+  partner: string | null;
+  total: number;
+  status: JournalEntryStatus;
+}
+
+export function listJournalEntries(journalId?: string) {
+  return apiFetch<JournalEntryListRow[]>(
+    `/journal-entries${journalId ? `?journalId=${journalId}` : ""}`,
+  );
+}
+
 export function createJournalEntry(input: CreateJournalEntryInput) {
   return apiFetch<JournalEntry>("/journal-entries", {
     method: "POST",

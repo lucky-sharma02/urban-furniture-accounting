@@ -55,6 +55,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { to: "/accounts", label: "Chart of Accounts", icon: BookOpen },
       { to: "/journals", label: "Accounting Journals", icon: Layers },
+      { to: "/journal-entries", label: "Journal Entries", icon: FileText },
       { to: "/post-entry", label: "Post Journal Entry", icon: FileSpreadsheet },
     ],
   },
@@ -132,6 +133,14 @@ const PAGE_CONTEXT: { match: (path: string) => boolean; ctx: PageContext }[] = [
       title: "Accounting Journals",
       category: "General Ledger",
       desc: "Sales, Purchase, Bank, and Cash transaction ledgers",
+    },
+  },
+  {
+    match: (p) => p.startsWith("/journal-entries"),
+    ctx: {
+      title: "Journal Entries",
+      category: "General Ledger",
+      desc: "Every posted ledger entry — date, number, partner, journal and total",
     },
   },
   {

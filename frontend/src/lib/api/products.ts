@@ -1,3 +1,4 @@
+import type { ProductType } from "@urban-furniture/shared";
 import { apiFetch } from "../api";
 
 export interface Product {
@@ -5,6 +6,7 @@ export interface Product {
   refNumber: string;
   name: string;
   category: string;
+  type: ProductType;
   salesPrice: number;
   purchasePrice: number;
   isArchived: boolean;
@@ -15,6 +17,7 @@ export interface Product {
 export interface ProductInput {
   name: string;
   category: string;
+  type: ProductType;
   salesPrice: number;
   purchasePrice: number;
 }

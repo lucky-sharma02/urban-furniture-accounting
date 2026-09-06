@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -201,6 +202,7 @@ export function JournalsPage() {
               <TableRow className="border-slate-200">
                 <TableHead className="text-xs font-semibold text-slate-700">Journal Name</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-700">Book Type</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-700">Default Account</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-700">Purpose & Transaction Scope</TableHead>
                 <TableHead className="text-right text-xs font-semibold text-slate-700">Actions</TableHead>
               </TableRow>
@@ -220,10 +222,16 @@ export function JournalsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-slate-600">
+                      {journal.defaultAccount?.name ?? <span className="text-slate-400">—</span>}
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-600">
                       {theme.description}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs text-slate-700 hover:bg-slate-100">
+                          <Link to={`/journal-entries?journalId=${journal.id}`}>Entries</Link>
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => openEditForm(journal)} className="h-7 px-2 text-xs text-slate-700 hover:bg-slate-100">
                           <Edit className="h-3 w-3 mr-1" /> Edit
                         </Button>

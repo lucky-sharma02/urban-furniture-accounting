@@ -10,6 +10,7 @@ import { ContactsPage } from "@/pages/internal/ContactsPage";
 import { CustomerInvoiceDetailPage } from "@/pages/internal/CustomerInvoiceDetailPage";
 import { CustomerInvoicesPage } from "@/pages/internal/CustomerInvoicesPage";
 import { DashboardPage } from "@/pages/internal/DashboardPage";
+import { JournalEntriesPage } from "@/pages/internal/JournalEntriesPage";
 import { JournalsPage } from "@/pages/internal/JournalsPage";
 import { PostEntryPage } from "@/pages/internal/PostEntryPage";
 import { ProductsPage } from "@/pages/internal/ProductsPage";
@@ -39,6 +40,7 @@ function App() {
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="accounts" element={<AccountsPage />} />
                 <Route path="journals" element={<JournalsPage />} />
+                <Route path="journal-entries" element={<JournalEntriesPage />} />
                 <Route path="post-entry" element={<PostEntryPage />} />
                 <Route path="reports/balance-sheet" element={<BalanceSheetPage />} />
                 <Route path="reports/profit-and-loss" element={<ProfitAndLossPage />} />

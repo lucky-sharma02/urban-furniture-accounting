@@ -5,6 +5,8 @@ export interface Journal {
   id: string;
   name: string;
   type: JournalType;
+  defaultAccountId: string | null;
+  defaultAccount?: { id: string; name: string } | null;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -13,6 +15,7 @@ export interface Journal {
 export interface JournalInput {
   name: string;
   type: JournalType;
+  defaultAccountId?: string | null;
 }
 
 export function listJournals(includeArchived = false) {

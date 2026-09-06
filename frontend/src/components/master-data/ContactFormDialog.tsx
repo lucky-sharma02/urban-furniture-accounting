@@ -29,7 +29,17 @@ interface ContactFormDialogProps {
   onSaved: () => void;
 }
 
-const emptyForm = { name: "", type: "Vendor" as ContactType, email: "", phone: "", address: "" };
+const emptyForm = {
+  name: "",
+  type: "Vendor" as ContactType,
+  email: "",
+  phone: "",
+  street: "",
+  city: "",
+  state: "",
+  country: "",
+  pincode: "",
+};
 
 export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: ContactFormDialogProps) {
   const [form, setForm] = useState(emptyForm);
@@ -45,7 +55,11 @@ export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: Cont
               type: contact.type,
               email: contact.email,
               phone: contact.phone ?? "",
-              address: contact.address ?? "",
+              street: contact.street ?? "",
+              city: contact.city ?? "",
+              state: contact.state ?? "",
+              country: contact.country ?? "",
+              pincode: contact.pincode ?? "",
             }
           : emptyForm,
       );
@@ -75,7 +89,11 @@ export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: Cont
         type: form.type,
         email: form.email,
         phone: form.phone || undefined,
-        address: form.address || undefined,
+        street: form.street || null,
+        city: form.city || null,
+        state: form.state || null,
+        country: form.country || null,
+        pincode: form.pincode || null,
       };
       if (contact) {
         await updateContact(contact.id, input);
@@ -158,15 +176,42 @@ export function ContactFormDialog({ open, onOpenChange, contact, onSaved }: Cont
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="address" className="text-xs font-semibold text-slate-700">Billing / Registered Address</Label>
+            <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+              <Label className="text-xs font-semibold text-slate-700">Billing / Registered Address</Label>
               <Input
-                id="address"
-                placeholder="Street address, City, Postal Code"
+                placeholder="Street"
                 className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                value={form.street}
+                onChange={(e) => setForm({ ...form, street: e.target.value })}
               />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="City"
+                  className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                />
+                <Input
+                  placeholder="State"
+                  className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
+                  value={form.state}
+                  onChange={(e) => setForm({ ...form, state: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Country"
+                  className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
+                  value={form.country}
+                  onChange={(e) => setForm({ ...form, country: e.target.value })}
+                />
+                <Input
+                  placeholder="Pincode"
+                  className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
+                  value={form.pincode}
+                  onChange={(e) => setForm({ ...form, pincode: e.target.value })}
+                />
+              </div>
             </div>
 
             {error && (

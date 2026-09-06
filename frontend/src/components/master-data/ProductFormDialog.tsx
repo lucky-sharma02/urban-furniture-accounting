@@ -9,8 +9,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createProduct, updateProduct, type Product } from "@/lib/api/products";
+import type { ProductType } from "@urban-furniture/shared";
 import { firstError, isAmount, isNonEmpty } from "@/lib/validation";
+
+const PRODUCT_TYPES: ProductType[] = ["Goods", "Service", "Combo"];
 
 interface ProductFormDialogProps {
   open: boolean;
@@ -19,7 +29,7 @@ interface ProductFormDialogProps {
   onSaved: () => void;
 }
 
-const emptyForm = { name: "", category: "", salesPrice: "", purchasePrice: "" };
+const emptyForm = { name: "", category: "", type: "Goods" as ProductType, salesPrice: "", purchasePrice: "" };
 
 export function ProductFormDialog({ open, onOpenChange, product, onSaved }: ProductFormDialogProps) {
   const [form, setForm] = useState(emptyForm);
@@ -33,6 +43,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
           ? {
               name: product.name,
               category: product.category,
+              type: product.type,
               salesPrice: String(product.salesPrice),
               purchasePrice: String(product.purchasePrice),
             }
@@ -63,6 +74,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
       const input = {
         name: form.name,
         category: form.category,
+        type: form.type,
         salesPrice: Number(form.salesPrice),
         purchasePrice: Number(form.purchasePrice),
       };
@@ -103,16 +115,37 @@ export function ProductFormDialog({ open, onOpenChange, product, onSaved }: Prod
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="category" required className="text-xs font-semibold text-slate-700">Category</Label>
-              <Input
-                id="category"
-                required
-                placeholder="e.g. Seating, Tables, Storage"
-                className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="type" required className="text-xs font-semibold text-slate-700">Product Type</Label>
+                <Select
+                  value={form.type}
+                  onValueChange={(v) => setForm({ ...form, type: v as ProductType })}
+                >
+                  <SelectTrigger id="type" className="h-9 border-slate-200 bg-slate-50 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border border-slate-200 bg-white shadow-card">
+                    {PRODUCT_TYPES.map((t) => (
+                      <SelectItem key={t} value={t} className="text-xs">
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="category" required className="text-xs font-semibold text-slate-700">Category</Label>
+                <Input
+                  id="category"
+                  required
+                  placeholder="e.g. Seating, Tables"
+                  className="h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3.5">
