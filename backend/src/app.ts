@@ -4,6 +4,7 @@ import { authGuard, requireRole } from "./middleware/auth-guard";
 import accountsRouter from "./routes/accounts";
 import analyticAccountsRouter from "./routes/analytic-accounts";
 import authRouter from "./routes/auth";
+import budgetsRouter from "./routes/budgets";
 import contactsRouter from "./routes/contacts";
 import customerInvoicesRouter from "./routes/customer-invoices";
 import journalEntriesRouter from "./routes/journal-entries";
@@ -46,6 +47,7 @@ app.use("/purchase-orders", staffOnly, purchaseOrdersRouter);
 app.use("/sales-orders", staffOnly, salesOrdersRouter);
 app.use("/reports", staffOnly, reportsRouter);
 app.use("/analytic-accounts", staffOnly, analyticAccountsRouter);
+app.use("/budgets", staffOnly, budgetsRouter);
 
 // User management is Admin-only per the role table — Accountant does not manage logins.
 app.use("/users", requireRole("Admin"), usersRouter);

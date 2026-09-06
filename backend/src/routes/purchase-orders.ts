@@ -1,9 +1,15 @@
 import { Router } from "express";
+import { budgetWarnings } from "../lib/budget";
 import { formatRef } from "../lib/format-ref";
 import { getJournalByName, postVendorBill } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
 
 const router = Router();
+
+// Optional "Budget Analytics" tag — a non-empty string id or null.
+function parseAnalyticAccountId(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
 
 interface LineInput {
   productId: string;
@@ -26,7 +32,7 @@ function isValidLine(line: unknown): line is LineInput {
 
 router.get("/", async (_req, res) => {
   const purchaseOrders = await prisma.purchaseOrder.findMany({
-    include: { lines: true, vendor: true },
+    include: { lines: true, vendor: true, analyticAccount: true },
     orderBy: { date: "desc" },
   });
 
@@ -46,7 +52,12 @@ router.get("/", async (_req, res) => {
 router.get("/:id", async (req, res) => {
   const purchaseOrder = await prisma.purchaseOrder.findUnique({
     where: { id: req.params.id },
-    include: { lines: { include: { product: true } }, vendor: true, vendorBills: true },
+    include: {
+      lines: { include: { product: true } },
+      vendor: true,
+      vendorBills: true,
+      analyticAccount: true,
+    },
   });
 
   if (!purchaseOrder) {
@@ -72,6 +83,7 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   const { vendorId, date, lines } = req.body;
+  const analyticAccountId = parseAnalyticAccountId(req.body.analyticAccountId);
 
   if (typeof vendorId !== "string" || vendorId.length === 0) {
     return res.status(400).json({ error: "vendorId is required" });
@@ -89,6 +101,7 @@ router.post("/", async (req, res) => {
     data: {
       vendorId,
       date: new Date(date),
+      analyticAccountId,
       lines: {
         create: lines.map((line: LineInput) => ({
           productId: line.productId,
@@ -100,6 +113,11 @@ router.post("/", async (req, res) => {
     include: { lines: true },
   });
 
+  const total = purchaseOrder.lines.reduce(
+    (sum, line) => sum + line.quantity.toNumber() * line.unitPrice.toNumber(),
+    0,
+  );
+
   res.status(201).json({
     ...purchaseOrder,
     refNumber: formatRef("PO", purchaseOrder.refNumber),
@@ -108,6 +126,7 @@ router.post("/", async (req, res) => {
       quantity: line.quantity.toNumber(),
       unitPrice: line.unitPrice.toNumber(),
     })),
+    budgetWarnings: await budgetWarnings(analyticAccountId, "Expenses", total, purchaseOrder.date),
   });
 });
 
@@ -115,6 +134,7 @@ router.post("/", async (req, res) => {
 // since a Billed PO has already generated a VendorBill from its current line amounts.
 router.put("/:id", async (req, res) => {
   const { vendorId, date, lines } = req.body;
+  const analyticAccountId = parseAnalyticAccountId(req.body.analyticAccountId);
 
   if (typeof vendorId !== "string" || vendorId.length === 0) {
     return res.status(400).json({ error: "vendorId is required" });
@@ -143,6 +163,7 @@ router.put("/:id", async (req, res) => {
       data: {
         vendorId,
         date: new Date(date),
+        analyticAccountId,
         lines: {
           create: lines.map((line: LineInput) => ({
             productId: line.productId,
@@ -194,8 +215,16 @@ router.post("/:id/convert-to-bill", async (req, res) => {
       amount,
       amountDue: amount,
       status: "Draft",
+      analyticAccountId: purchaseOrder.analyticAccountId,
     },
   });
+
+  const warnings = await budgetWarnings(
+    purchaseOrder.analyticAccountId,
+    "Expenses",
+    amount,
+    vendorBill.date,
+  );
 
   const purchaseJournal = await getJournalByName("Purchase Journal");
 
@@ -218,6 +247,7 @@ router.post("/:id/convert-to-bill", async (req, res) => {
     refNumber: formatRef("BILL", vendorBill.refNumber),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
+    budgetWarnings: warnings,
   });
 });
 

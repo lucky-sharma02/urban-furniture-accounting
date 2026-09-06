@@ -15,7 +15,7 @@ function toCents(amount: number): number {
 router.get("/", async (req, res) => {
   const invoices = await prisma.customerInvoice.findMany({
     where: scopeWhere(req, "customerId"),
-    include: { customer: true },
+    include: { customer: true, analyticAccount: true },
     orderBy: { date: "desc" },
   });
 
@@ -34,7 +34,11 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const invoice = await prisma.customerInvoice.findUnique({
     where: { id: req.params.id },
-    include: { customer: true, payments: { include: { paymentAccount: true } } },
+    include: {
+      customer: true,
+      analyticAccount: true,
+      payments: { include: { paymentAccount: true } },
+    },
   });
 
   if (!invoice || !ownsRecord(req, invoice.customerId)) {

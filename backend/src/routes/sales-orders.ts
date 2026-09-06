@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { budgetWarnings } from "../lib/budget";
 import { formatRef } from "../lib/format-ref";
 import { getJournalByName, postCustomerInvoice } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
@@ -7,6 +8,11 @@ const router = Router();
 
 // Flat rate applied to every generated invoice's base amount.
 const GST_RATE = 0.18;
+
+// Optional "Budget Analytics" tag — a non-empty string id or null.
+function parseAnalyticAccountId(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
 
 interface LineInput {
   productId: string;
@@ -29,7 +35,7 @@ function isValidLine(line: unknown): line is LineInput {
 
 router.get("/", async (_req, res) => {
   const salesOrders = await prisma.salesOrder.findMany({
-    include: { lines: true, customer: true },
+    include: { lines: true, customer: true, analyticAccount: true },
     orderBy: { date: "desc" },
   });
 
@@ -49,7 +55,12 @@ router.get("/", async (_req, res) => {
 router.get("/:id", async (req, res) => {
   const salesOrder = await prisma.salesOrder.findUnique({
     where: { id: req.params.id },
-    include: { lines: { include: { product: true } }, customer: true, invoices: true },
+    include: {
+      lines: { include: { product: true } },
+      customer: true,
+      invoices: true,
+      analyticAccount: true,
+    },
   });
 
   if (!salesOrder) {
@@ -77,6 +88,7 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   const { customerId, date, lines } = req.body;
+  const analyticAccountId = parseAnalyticAccountId(req.body.analyticAccountId);
 
   if (typeof customerId !== "string" || customerId.length === 0) {
     return res.status(400).json({ error: "customerId is required" });
@@ -94,6 +106,7 @@ router.post("/", async (req, res) => {
     data: {
       customerId,
       date: new Date(date),
+      analyticAccountId,
       lines: {
         create: lines.map((line: LineInput) => ({
           productId: line.productId,
@@ -105,6 +118,11 @@ router.post("/", async (req, res) => {
     include: { lines: true },
   });
 
+  const netTotal = salesOrder.lines.reduce(
+    (sum, line) => sum + line.quantity.toNumber() * line.unitPrice.toNumber(),
+    0,
+  );
+
   res.status(201).json({
     ...salesOrder,
     refNumber: formatRef("SO", salesOrder.refNumber),
@@ -113,6 +131,7 @@ router.post("/", async (req, res) => {
       quantity: line.quantity.toNumber(),
       unitPrice: line.unitPrice.toNumber(),
     })),
+    budgetWarnings: await budgetWarnings(analyticAccountId, "Income", netTotal, salesOrder.date),
   });
 });
 
@@ -120,6 +139,7 @@ router.post("/", async (req, res) => {
 // since an Invoiced SO has already generated a CustomerInvoice from its current line amounts.
 router.put("/:id", async (req, res) => {
   const { customerId, date, lines } = req.body;
+  const analyticAccountId = parseAnalyticAccountId(req.body.analyticAccountId);
 
   if (typeof customerId !== "string" || customerId.length === 0) {
     return res.status(400).json({ error: "customerId is required" });
@@ -148,6 +168,7 @@ router.put("/:id", async (req, res) => {
       data: {
         customerId,
         date: new Date(date),
+        analyticAccountId,
         lines: {
           create: lines.map((line: LineInput) => ({
             productId: line.productId,
@@ -204,8 +225,11 @@ router.post("/:id/generate-invoice", async (req, res) => {
       amount,
       amountDue: amount,
       status: "Draft",
+      analyticAccountId: salesOrder.analyticAccountId,
     },
   });
+
+  const warnings = await budgetWarnings(salesOrder.analyticAccountId, "Income", baseAmount, invoice.date);
 
   const salesJournal = await getJournalByName("Sales Journal");
 
@@ -231,6 +255,7 @@ router.post("/:id/generate-invoice", async (req, res) => {
     taxAmount: invoice.taxAmount.toNumber(),
     amount: invoice.amount.toNumber(),
     amountDue: invoice.amountDue.toNumber(),
+    budgetWarnings: warnings,
   });
 });
 

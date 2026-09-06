@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { budgetWarnings } from "../lib/budget";
 import { formatRef } from "../lib/format-ref";
 import { getJournalByName, postVendorBill, postVendorPayment } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
@@ -15,7 +16,7 @@ function toCents(amount: number): number {
 router.get("/", async (req, res) => {
   const vendorBills = await prisma.vendorBill.findMany({
     where: scopeWhere(req, "vendorId"),
-    include: { vendor: true },
+    include: { vendor: true, analyticAccount: true },
     orderBy: { date: "desc" },
   });
 
@@ -32,7 +33,11 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const vendorBill = await prisma.vendorBill.findUnique({
     where: { id: req.params.id },
-    include: { vendor: true, payments: { include: { paymentAccount: true } } },
+    include: {
+      vendor: true,
+      analyticAccount: true,
+      payments: { include: { paymentAccount: true } },
+    },
   });
 
   if (!vendorBill || !ownsRecord(req, vendorBill.vendorId)) {
@@ -60,6 +65,10 @@ router.post("/", async (req, res) => {
   }
 
   const { vendorId, date, amount } = req.body;
+  const analyticAccountId =
+    typeof req.body.analyticAccountId === "string" && req.body.analyticAccountId.length > 0
+      ? req.body.analyticAccountId
+      : null;
 
   if (typeof vendorId !== "string" || vendorId.length === 0) {
     return res.status(400).json({ error: "vendorId is required" });
@@ -73,6 +82,8 @@ router.post("/", async (req, res) => {
 
   const billDate = new Date(date);
 
+  const warnings = await budgetWarnings(analyticAccountId, "Expenses", amount, billDate);
+
   const vendorBill = await prisma.vendorBill.create({
     data: {
       purchaseOrderId: null,
@@ -81,6 +92,7 @@ router.post("/", async (req, res) => {
       amount,
       amountDue: amount,
       status: "Draft",
+      analyticAccountId,
     },
   });
 
@@ -100,6 +112,7 @@ router.post("/", async (req, res) => {
     refNumber: formatRef("BILL", vendorBill.refNumber),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
+    budgetWarnings: warnings,
   });
 });
 

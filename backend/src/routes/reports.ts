@@ -1,5 +1,6 @@
 import { Router } from "express";
 import PDFDocument from "pdfkit";
+import { buildBudgetReport } from "../lib/budget";
 import { getAccountBalance, type AccountBalance } from "../lib/journal-engine";
 import { prisma } from "../lib/prisma";
 
@@ -55,39 +56,6 @@ async function buildProfitAndLoss(from: Date, to: Date) {
     expenses,
     totals: { income: totalIncome, expenses: totalExpenses, netIncome: totalIncome - totalExpenses },
   };
-}
-
-async function buildBudgetReport() {
-  const budgets = await prisma.budget.findMany({
-    include: { analyticAccount: true },
-    orderBy: { periodStart: "desc" },
-  });
-
-  return Promise.all(
-    budgets.map(async (budget) => {
-      const actualAgg = await prisma.journalEntryLine.aggregate({
-        where: {
-          analyticAccountId: budget.analyticAccountId,
-          journalEntry: { date: { gte: budget.periodStart, lte: budget.periodEnd } },
-        },
-        _sum: { debit: true, credit: true },
-      });
-
-      const actualAmount = (actualAgg._sum.debit?.toNumber() ?? 0) - (actualAgg._sum.credit?.toNumber() ?? 0);
-      const plannedAmount = budget.plannedAmount.toNumber();
-
-      return {
-        id: budget.id,
-        analyticAccountId: budget.analyticAccountId,
-        analyticAccountName: budget.analyticAccount.name,
-        periodStart: budget.periodStart.toISOString(),
-        periodEnd: budget.periodEnd.toISOString(),
-        plannedAmount,
-        actualAmount,
-        remainingAmount: plannedAmount - actualAmount,
-      };
-    }),
-  );
 }
 
 router.get("/balance-sheet", async (req, res) => {
@@ -173,7 +141,7 @@ router.get("/profit-and-loss/pdf", async (req, res) => {
 });
 
 router.get("/budget/pdf", async (_req, res) => {
-  const rows = await buildBudgetReport();
+  const budgets = await buildBudgetReport();
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", "attachment; filename=budget-report.pdf");
@@ -184,16 +152,36 @@ router.get("/budget/pdf", async (_req, res) => {
   doc.fontSize(18).text("Budget Report", { align: "center" });
   doc.moveDown(1.5);
 
-  rows.forEach((row) => {
-    doc.fontSize(12).text(row.analyticAccountName);
+  budgets.forEach((budget) => {
+    doc.fontSize(13).text(`${budget.name}  (${budget.status})`);
     doc
       .fontSize(10)
       .text(
-        `${new Date(row.periodStart).toLocaleDateString()} – ${new Date(row.periodEnd).toLocaleDateString()}`,
+        `${new Date(budget.periodStart).toLocaleDateString()} - ${new Date(budget.periodEnd).toLocaleDateString()}` +
+          (budget.responsibleName ? `   |   Responsible: ${budget.responsibleName}` : ""),
       );
-    doc.text(`Planned: ${row.plannedAmount.toFixed(2)}`);
-    doc.text(`Actual: ${row.actualAmount.toFixed(2)}`);
-    doc.text(`Remaining: ${row.remainingAmount.toFixed(2)}`);
+    doc.moveDown(0.5);
+
+    budget.lines.forEach((line) => {
+      doc
+        .fontSize(10)
+        .text(
+          `  ${line.analyticAccountName} [${line.type}]  ` +
+            `Committed ${line.committedAmount.toFixed(2)}  ` +
+            `Achieved ${line.achievedAmount.toFixed(2)}  ` +
+            `(${line.achievedPct.toFixed(0)}%)  ` +
+            `To Achieve ${line.amountToAchieve.toFixed(2)}`,
+        );
+    });
+
+    doc
+      .moveDown(0.3)
+      .fontSize(10)
+      .text(
+        `  Total  Committed ${budget.totals.committed.toFixed(2)}  ` +
+          `Achieved ${budget.totals.achieved.toFixed(2)}  ` +
+          `To Achieve ${budget.totals.amountToAchieve.toFixed(2)}`,
+      );
     doc.moveDown();
   });
 

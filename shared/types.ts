@@ -71,3 +71,7 @@ export type DocumentStatus = "Draft" | "Partial" | "Paid";
 export type PurchaseOrderStatus = "Draft" | "Billed";
 
 export type SalesOrderStatus = "Draft" | "Invoiced";
+
+export type BudgetStatus = "Draft" | "Confirmed" | "Revised" | "Cancelled";
+
+export type BudgetType = "Income" | "Expenses";
