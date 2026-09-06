@@ -61,7 +61,7 @@ router.get("/", async (req, res) => {
   res.json(
     vendorBills.map((bill) => ({
       ...bill,
-      refNumber: formatRef("BILL", bill.refNumber),
+      refNumber: formatRef("BILL", bill.refNumber, bill.date),
       amount: bill.amount.toNumber(),
       amountDue: bill.amountDue.toNumber(),
       lines: bill.lines.map(serializeLine),
@@ -86,7 +86,7 @@ router.get("/:id", async (req, res) => {
 
   res.json({
     ...vendorBill,
-    refNumber: formatRef("BILL", vendorBill.refNumber),
+    refNumber: formatRef("BILL", vendorBill.refNumber, vendorBill.date),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
     purchaseOrder: vendorBill.purchaseOrder
@@ -108,13 +108,16 @@ router.post("/", async (req, res) => {
     return res.status(403).json({ error: "insufficient permissions" });
   }
 
-  const { vendorId, date, lines } = req.body ?? {};
+  const { vendorId, date, lines, reference, dueDate } = req.body ?? {};
 
   if (typeof vendorId !== "string" || vendorId.length === 0) {
     return res.status(400).json({ error: "vendorId is required" });
   }
   if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
     return res.status(400).json({ error: "a valid date is required" });
+  }
+  if (dueDate != null && (typeof dueDate !== "string" || Number.isNaN(Date.parse(dueDate)))) {
+    return res.status(400).json({ error: "dueDate must be a valid date when provided" });
   }
   if (!Array.isArray(lines) || lines.length === 0 || !lines.every(isValidLine)) {
     return res.status(400).json({
@@ -133,6 +136,8 @@ router.post("/", async (req, res) => {
       purchaseOrderId: null,
       vendorId,
       date: billDate,
+      dueDate: typeof dueDate === "string" ? new Date(dueDate) : null,
+      reference: typeof reference === "string" && reference.trim() !== "" ? reference.trim() : null,
       amount,
       amountDue: amount,
       status: "Draft",
@@ -163,7 +168,7 @@ router.post("/", async (req, res) => {
 
   res.status(201).json({
     ...vendorBill,
-    refNumber: formatRef("BILL", vendorBill.refNumber),
+    refNumber: formatRef("BILL", vendorBill.refNumber, vendorBill.date),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
     lines: vendorBill.lines.map(serializeLine),
@@ -232,7 +237,7 @@ router.post("/:id/payments", async (req, res) => {
     payment: { ...payment, refNumber: formatRef("PMT", payment.refNumber), amount: payment.amount.toNumber() },
     vendorBill: {
       ...updatedBill,
-      refNumber: formatRef("BILL", updatedBill.refNumber),
+      refNumber: formatRef("BILL", updatedBill.refNumber, updatedBill.date),
       amount: updatedBill.amount.toNumber(),
       amountDue: updatedBill.amountDue.toNumber(),
     },

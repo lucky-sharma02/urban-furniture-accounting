@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
   res.json(
     invoices.map((invoice) => ({
       ...invoice,
-      refNumber: formatRef("INV", invoice.refNumber),
+      refNumber: formatRef("INV", invoice.refNumber, invoice.date),
       baseAmount: invoice.baseAmount.toNumber(),
       taxAmount: invoice.taxAmount.toNumber(),
       amount: invoice.amount.toNumber(),
@@ -54,7 +54,7 @@ router.get("/:id", async (req, res) => {
 
   res.json({
     ...invoice,
-    refNumber: formatRef("INV", invoice.refNumber),
+    refNumber: formatRef("INV", invoice.refNumber, invoice.date),
     baseAmount: invoice.baseAmount.toNumber(),
     taxAmount: invoice.taxAmount.toNumber(),
     amount: invoice.amount.toNumber(),
@@ -132,7 +132,7 @@ router.post("/:id/payments", async (req, res) => {
     payment: { ...payment, refNumber: formatRef("PMT", payment.refNumber), amount: payment.amount.toNumber() },
     customerInvoice: {
       ...updatedInvoice,
-      refNumber: formatRef("INV", updatedInvoice.refNumber),
+      refNumber: formatRef("INV", updatedInvoice.refNumber, updatedInvoice.date),
       baseAmount: updatedInvoice.baseAmount.toNumber(),
       taxAmount: updatedInvoice.taxAmount.toNumber(),
       amount: updatedInvoice.amount.toNumber(),

@@ -84,7 +84,7 @@ router.get("/:id", async (req, res) => {
     lines: purchaseOrder.lines.map(serializeLine),
     vendorBills: purchaseOrder.vendorBills.map((bill) => ({
       ...bill,
-      refNumber: formatRef("BILL", bill.refNumber),
+      refNumber: formatRef("BILL", bill.refNumber, bill.date),
       amount: bill.amount.toNumber(),
       amountDue: bill.amountDue.toNumber(),
     })),
@@ -170,9 +170,45 @@ router.put("/:id", async (req, res) => {
   });
 });
 
-// Converts a Draft PO into a VendorBill and immediately posts it (Debit Purchase
-// Expense / Credit Creditors) via postVendorBill() — never bypass the engine here.
-// Line-level Budget Analytics tags are carried over onto the bill's lines.
+// Draft -> Confirmed. The non-blocking budget warning fires here (wireframe:
+// "Non Blocking Warning on Confirmation of PO"). A Confirmed PO can no longer be
+// edited but can still be converted to a bill.
+router.post("/:id/confirm", async (req, res) => {
+  const po = await prisma.purchaseOrder.findUnique({
+    where: { id: req.params.id },
+    include: { lines: true },
+  });
+  if (!po) return res.status(404).json({ error: "purchase order not found" });
+  if (po.status !== "Draft") {
+    return res.status(400).json({ error: "only a Draft purchase order can be confirmed" });
+  }
+
+  const updated = await prisma.purchaseOrder.update({
+    where: { id: po.id },
+    data: { status: "Confirmed" },
+    include: { lines: true },
+  });
+
+  const warnings = await budgetWarnings(
+    po.lines.map((l) => ({
+      analyticAccountId: l.analyticAccountId,
+      amount: l.quantity.toNumber() * l.unitPrice.toNumber(),
+    })),
+    "Expenses",
+    po.date,
+  );
+
+  res.json({
+    ...updated,
+    refNumber: formatRef("PO", updated.refNumber),
+    lines: updated.lines.map(serializeLine),
+    budgetWarnings: warnings,
+  });
+});
+
+// Converts a Draft/Confirmed PO into a VendorBill and immediately posts it (Debit
+// Purchase Expense / Credit Creditors) via postVendorBill() — never bypass the
+// engine here. Line-level Budget Analytics tags are carried over onto the bill's lines.
 router.post("/:id/convert-to-bill", async (req, res) => {
   const purchaseOrder = await prisma.purchaseOrder.findUnique({
     where: { id: req.params.id },
@@ -239,7 +275,7 @@ router.post("/:id/convert-to-bill", async (req, res) => {
 
   res.status(201).json({
     ...vendorBill,
-    refNumber: formatRef("BILL", vendorBill.refNumber),
+    refNumber: formatRef("BILL", vendorBill.refNumber, vendorBill.date),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
     lines: vendorBill.lines.map(serializeLine),

@@ -48,6 +48,7 @@ enum JournalEntrySourceType {
 
 enum PurchaseOrderStatus {
   Draft
+  Confirmed
   Billed
 }
 
@@ -61,6 +62,7 @@ enum VendorBillStatus {
 
 enum SalesOrderStatus {
   Draft
+  Confirmed
   Invoiced
 }
 
@@ -277,6 +279,8 @@ model VendorBill {
   vendorId        String
   vendor          Contact          @relation(fields: [vendorId], references: [id])
   date            DateTime
+  dueDate         DateTime?
+  reference       String?
   amount          Decimal          @db.Decimal(12, 2)
   amountDue       Decimal          @db.Decimal(12, 2)
   status          VendorBillStatus @default(Draft)
@@ -347,6 +351,8 @@ model CustomerInvoice {
   customerId   String
   customer     Contact               @relation(fields: [customerId], references: [id])
   date         DateTime
+  dueDate      DateTime?
+  reference    String?
   baseAmount   Decimal               @db.Decimal(12, 2)
   taxAmount    Decimal               @db.Decimal(12, 2)
   amount       Decimal               @db.Decimal(12, 2)

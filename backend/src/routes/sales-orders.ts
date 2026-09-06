@@ -101,7 +101,7 @@ router.get("/:id", async (req, res) => {
     lines: salesOrder.lines.map(serializeLine),
     invoices: salesOrder.invoices.map((invoice) => ({
       ...invoice,
-      refNumber: formatRef("INV", invoice.refNumber),
+      refNumber: formatRef("INV", invoice.refNumber, invoice.date),
       baseAmount: invoice.baseAmount.toNumber(),
       taxAmount: invoice.taxAmount.toNumber(),
       amount: invoice.amount.toNumber(),
@@ -174,8 +174,43 @@ router.put("/:id", async (req, res) => {
   });
 });
 
-// Converts a Draft SO into a CustomerInvoice (base amount + 18% GST) and immediately
-// posts it (Debit Debtors / Credit Sales Income + Credit Tax Payable) via
+// Draft -> Confirmed. The non-blocking budget warning fires here. A Confirmed SO
+// can no longer be edited but can still be turned into an invoice.
+router.post("/:id/confirm", async (req, res) => {
+  const so = await prisma.salesOrder.findUnique({
+    where: { id: req.params.id },
+    include: { lines: true },
+  });
+  if (!so) return res.status(404).json({ error: "sales order not found" });
+  if (so.status !== "Draft") {
+    return res.status(400).json({ error: "only a Draft sales order can be confirmed" });
+  }
+
+  const updated = await prisma.salesOrder.update({
+    where: { id: so.id },
+    data: { status: "Confirmed" },
+    include: { lines: true },
+  });
+
+  const warnings = await budgetWarnings(
+    so.lines.map((l) => ({
+      analyticAccountId: l.analyticAccountId,
+      amount: l.quantity.toNumber() * l.unitPrice.toNumber(),
+    })),
+    "Income",
+    so.date,
+  );
+
+  res.json({
+    ...updated,
+    refNumber: formatRef("SO", updated.refNumber),
+    lines: updated.lines.map(serializeLine),
+    budgetWarnings: warnings,
+  });
+});
+
+// Converts a Draft/Confirmed SO into a CustomerInvoice (base amount + 18% GST) and
+// immediately posts it (Debit Debtors / Credit Sales Income + Credit Tax Payable) via
 // postCustomerInvoice() — never bypass the engine here. Line-level Budget Analytics
 // tags are carried over onto the invoice's lines.
 router.post("/:id/generate-invoice", async (req, res) => {
@@ -249,7 +284,7 @@ router.post("/:id/generate-invoice", async (req, res) => {
 
   res.status(201).json({
     ...invoice,
-    refNumber: formatRef("INV", invoice.refNumber),
+    refNumber: formatRef("INV", invoice.refNumber, invoice.date),
     baseAmount: invoice.baseAmount.toNumber(),
     taxAmount: invoice.taxAmount.toNumber(),
     amount: invoice.amount.toNumber(),
