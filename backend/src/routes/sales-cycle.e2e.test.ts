@@ -11,6 +11,7 @@ async function cleanupInvoice(invoiceId: string, soId?: string) {
   await prisma.journalEntryLine.deleteMany({ where: { journalEntry: { sourceId: { in: sourceIds } } } });
   await prisma.journalEntry.deleteMany({ where: { sourceId: { in: sourceIds } } });
   await prisma.payment.deleteMany({ where: { customerInvoiceId: invoiceId } });
+  await prisma.customerInvoiceLine.deleteMany({ where: { customerInvoiceId: invoiceId } });
   await prisma.customerInvoice.deleteMany({ where: { id: invoiceId } });
   if (soId) {
     await prisma.salesOrderLine.deleteMany({ where: { salesOrderId: soId } });

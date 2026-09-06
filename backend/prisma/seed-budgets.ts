@@ -62,33 +62,46 @@ async function main() {
   );
   const idByName = new Map(accounts.map((a) => [a.name, a.id]));
 
-  // 2. Reset budgets + tags (demo data only), then re-tag bills and invoices.
+  // 2. Reset budgets + tags (demo data only), then re-tag bill and invoice lines.
   await prisma.budget.deleteMany({});
-  await prisma.vendorBill.updateMany({ data: { analyticAccountId: null } });
-  await prisma.customerInvoice.updateMany({ data: { analyticAccountId: null } });
+  await prisma.vendorBillLine.updateMany({ data: { analyticAccountId: null } });
+  await prisma.customerInvoiceLine.updateMany({ data: { analyticAccountId: null } });
 
-  const bills = await prisma.vendorBill.findMany({ select: { id: true, amount: true } });
-  const invoices = await prisma.customerInvoice.findMany({ select: { id: true, baseAmount: true } });
+  const billLines = await prisma.vendorBillLine.findMany({
+    select: { id: true, quantity: true, unitPrice: true },
+  });
+  const invoiceLines = await prisma.customerInvoiceLine.findMany({
+    select: { id: true, quantity: true, unitPrice: true },
+  });
 
   const expenseByName = new Map<string, number>(accounts.map((a) => [a.name, 0]));
   const incomeByName = new Map<string, number>(accounts.map((a) => [a.name, 0]));
 
-  for (const bill of bills) {
-    const name = bucketFor(bill.id, weightedNames);
-    await prisma.vendorBill.update({ where: { id: bill.id }, data: { analyticAccountId: idByName.get(name)! } });
-    expenseByName.set(name, (expenseByName.get(name) ?? 0) + bill.amount.toNumber());
-  }
-  for (const invoice of invoices) {
-    const name = bucketFor(invoice.id, weightedNames);
-    await prisma.customerInvoice.update({
-      where: { id: invoice.id },
+  for (const line of billLines) {
+    const name = bucketFor(line.id, weightedNames);
+    await prisma.vendorBillLine.update({
+      where: { id: line.id },
       data: { analyticAccountId: idByName.get(name)! },
     });
-    incomeByName.set(name, (incomeByName.get(name) ?? 0) + invoice.baseAmount.toNumber());
+    expenseByName.set(
+      name,
+      (expenseByName.get(name) ?? 0) + line.quantity.toNumber() * line.unitPrice.toNumber(),
+    );
+  }
+  for (const line of invoiceLines) {
+    const name = bucketFor(line.id, weightedNames);
+    await prisma.customerInvoiceLine.update({
+      where: { id: line.id },
+      data: { analyticAccountId: idByName.get(name)! },
+    });
+    incomeByName.set(
+      name,
+      (incomeByName.get(name) ?? 0) + line.quantity.toNumber() * line.unitPrice.toNumber(),
+    );
   }
 
-  if (bills.length === 0 && invoices.length === 0) {
-    console.log("No vendor bills or customer invoices — run `npm run seed:bulk` first for a meaningful report.");
+  if (billLines.length === 0 && invoiceLines.length === 0) {
+    console.log("No vendor bill / invoice lines — run `npm run seed:bulk` first for a meaningful report.");
   }
 
   // 3. One Confirmed budget per centre for the current financial year.

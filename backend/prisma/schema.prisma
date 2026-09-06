@@ -139,8 +139,10 @@ model Product {
   isArchived         Boolean             @default(false)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
-  purchaseOrderLines PurchaseOrderLine[]
-  salesOrderLines    SalesOrderLine[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  salesOrderLines      SalesOrderLine[]
+  vendorBillLines      VendorBillLine[]
+  customerInvoiceLines CustomerInvoiceLine[]
 }
 
 model Account {
@@ -205,12 +207,12 @@ model AnalyticAccount {
   isArchived        Boolean            @default(false)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  journalEntryLines JournalEntryLine[]
-  budgetLines       BudgetLine[]
-  purchaseOrders    PurchaseOrder[]
-  vendorBills       VendorBill[]
-  salesOrders       SalesOrder[]
-  customerInvoices  CustomerInvoice[]
+  journalEntryLines    JournalEntryLine[]
+  budgetLines          BudgetLine[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  vendorBillLines      VendorBillLine[]
+  salesOrderLines      SalesOrderLine[]
+  customerInvoiceLines CustomerInvoiceLine[]
 }
 
 // Header of a budget document. "Achieved" is never stored — it is always computed
@@ -243,46 +245,57 @@ model BudgetLine {
 }
 
 model PurchaseOrder {
-  id                String              @id @default(cuid())
-  refNumber         Int                 @unique @default(autoincrement())
-  vendorId          String
-  vendor            Contact             @relation(fields: [vendorId], references: [id])
-  date              DateTime
-  status            PurchaseOrderStatus @default(Draft)
-  analyticAccountId String?
-  analyticAccount   AnalyticAccount?    @relation(fields: [analyticAccountId], references: [id])
-  lines             PurchaseOrderLine[]
-  vendorBills       VendorBill[]
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  id          String              @id @default(cuid())
+  refNumber   Int                 @unique @default(autoincrement())
+  vendorId    String
+  vendor      Contact             @relation(fields: [vendorId], references: [id])
+  date        DateTime
+  status      PurchaseOrderStatus @default(Draft)
+  lines       PurchaseOrderLine[]
+  vendorBills VendorBill[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 }
 
 model PurchaseOrderLine {
-  id              String        @id @default(cuid())
-  purchaseOrderId String
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  productId       String
-  product         Product       @relation(fields: [productId], references: [id])
-  quantity        Decimal       @db.Decimal(12, 2)
-  unitPrice       Decimal       @db.Decimal(12, 2)
+  id                String           @id @default(cuid())
+  purchaseOrderId   String
+  purchaseOrder     PurchaseOrder    @relation(fields: [purchaseOrderId], references: [id])
+  productId         String
+  product           Product          @relation(fields: [productId], references: [id])
+  analyticAccountId String?
+  analyticAccount   AnalyticAccount? @relation(fields: [analyticAccountId], references: [id])
+  quantity          Decimal          @db.Decimal(12, 2)
+  unitPrice         Decimal          @db.Decimal(12, 2)
 }
 
 model VendorBill {
+  id              String           @id @default(cuid())
+  refNumber       Int              @unique @default(autoincrement())
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
+  vendorId        String
+  vendor          Contact          @relation(fields: [vendorId], references: [id])
+  date            DateTime
+  amount          Decimal          @db.Decimal(12, 2)
+  amountDue       Decimal          @db.Decimal(12, 2)
+  status          VendorBillStatus @default(Draft)
+  lines           VendorBillLine[]
+  payments        Payment[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model VendorBillLine {
   id                String           @id @default(cuid())
-  refNumber         Int              @unique @default(autoincrement())
-  purchaseOrderId   String?
-  purchaseOrder     PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
-  vendorId          String
-  vendor            Contact          @relation(fields: [vendorId], references: [id])
-  date              DateTime
-  amount            Decimal          @db.Decimal(12, 2)
-  amountDue         Decimal          @db.Decimal(12, 2)
-  status            VendorBillStatus @default(Draft)
+  vendorBillId      String
+  vendorBill        VendorBill       @relation(fields: [vendorBillId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product          @relation(fields: [productId], references: [id])
   analyticAccountId String?
   analyticAccount   AnalyticAccount? @relation(fields: [analyticAccountId], references: [id])
-  payments          Payment[]
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  quantity          Decimal          @db.Decimal(12, 2)
+  unitPrice         Decimal          @db.Decimal(12, 2)
 }
 
 // Exactly one of vendorBillId / customerInvoiceId is set per row — enforced at the
@@ -302,46 +315,57 @@ model Payment {
 }
 
 model SalesOrder {
-  id                String            @id @default(cuid())
-  refNumber         Int               @unique @default(autoincrement())
-  customerId        String
-  customer          Contact           @relation(fields: [customerId], references: [id])
-  date              DateTime
-  status            SalesOrderStatus  @default(Draft)
-  analyticAccountId String?
-  analyticAccount   AnalyticAccount?  @relation(fields: [analyticAccountId], references: [id])
-  lines             SalesOrderLine[]
-  invoices          CustomerInvoice[]
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id         String            @id @default(cuid())
+  refNumber  Int               @unique @default(autoincrement())
+  customerId String
+  customer   Contact           @relation(fields: [customerId], references: [id])
+  date       DateTime
+  status     SalesOrderStatus  @default(Draft)
+  lines      SalesOrderLine[]
+  invoices   CustomerInvoice[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 }
 
 model SalesOrderLine {
-  id           String     @id @default(cuid())
-  salesOrderId String
-  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
-  productId    String
-  product      Product    @relation(fields: [productId], references: [id])
-  quantity     Decimal    @db.Decimal(12, 2)
-  unitPrice    Decimal    @db.Decimal(12, 2)
+  id                String           @id @default(cuid())
+  salesOrderId      String
+  salesOrder        SalesOrder       @relation(fields: [salesOrderId], references: [id])
+  productId         String
+  product           Product          @relation(fields: [productId], references: [id])
+  analyticAccountId String?
+  analyticAccount   AnalyticAccount? @relation(fields: [analyticAccountId], references: [id])
+  quantity          Decimal          @db.Decimal(12, 2)
+  unitPrice         Decimal          @db.Decimal(12, 2)
 }
 
 model CustomerInvoice {
+  id           String                @id @default(cuid())
+  refNumber    Int                   @unique @default(autoincrement())
+  salesOrderId String?
+  salesOrder   SalesOrder?           @relation(fields: [salesOrderId], references: [id])
+  customerId   String
+  customer     Contact               @relation(fields: [customerId], references: [id])
+  date         DateTime
+  baseAmount   Decimal               @db.Decimal(12, 2)
+  taxAmount    Decimal               @db.Decimal(12, 2)
+  amount       Decimal               @db.Decimal(12, 2)
+  amountDue    Decimal               @db.Decimal(12, 2)
+  status       VendorBillStatus      @default(Draft)
+  lines        CustomerInvoiceLine[]
+  payments     Payment[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+model CustomerInvoiceLine {
   id                String           @id @default(cuid())
-  refNumber         Int              @unique @default(autoincrement())
-  salesOrderId      String?
-  salesOrder        SalesOrder?      @relation(fields: [salesOrderId], references: [id])
-  customerId        String
-  customer          Contact          @relation(fields: [customerId], references: [id])
-  date              DateTime
-  baseAmount        Decimal          @db.Decimal(12, 2)
-  taxAmount         Decimal          @db.Decimal(12, 2)
-  amount            Decimal          @db.Decimal(12, 2)
-  amountDue         Decimal          @db.Decimal(12, 2)
-  status            VendorBillStatus @default(Draft)
+  customerInvoiceId String
+  customerInvoice   CustomerInvoice  @relation(fields: [customerInvoiceId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product          @relation(fields: [productId], references: [id])
   analyticAccountId String?
   analyticAccount   AnalyticAccount? @relation(fields: [analyticAccountId], references: [id])
-  payments          Payment[]
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  quantity          Decimal          @db.Decimal(12, 2)
+  unitPrice         Decimal          @db.Decimal(12, 2)
 }

@@ -12,10 +12,15 @@ function toCents(amount: number): number {
   return Math.round(amount * 100);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeLine(line: any) {
+  return { ...line, quantity: line.quantity.toNumber(), unitPrice: line.unitPrice.toNumber() };
+}
+
 router.get("/", async (req, res) => {
   const invoices = await prisma.customerInvoice.findMany({
     where: scopeWhere(req, "customerId"),
-    include: { customer: true, analyticAccount: true },
+    include: { customer: true, lines: { include: { analyticAccount: true } } },
     orderBy: { date: "desc" },
   });
 
@@ -27,6 +32,7 @@ router.get("/", async (req, res) => {
       taxAmount: invoice.taxAmount.toNumber(),
       amount: invoice.amount.toNumber(),
       amountDue: invoice.amountDue.toNumber(),
+      lines: invoice.lines.map(serializeLine),
     })),
   );
 });
@@ -36,7 +42,8 @@ router.get("/:id", async (req, res) => {
     where: { id: req.params.id },
     include: {
       customer: true,
-      analyticAccount: true,
+      salesOrder: { select: { id: true, refNumber: true } },
+      lines: { include: { product: true, analyticAccount: true } },
       payments: { include: { paymentAccount: true } },
     },
   });
@@ -52,6 +59,10 @@ router.get("/:id", async (req, res) => {
     taxAmount: invoice.taxAmount.toNumber(),
     amount: invoice.amount.toNumber(),
     amountDue: invoice.amountDue.toNumber(),
+    salesOrder: invoice.salesOrder
+      ? { id: invoice.salesOrder.id, refNumber: formatRef("SO", invoice.salesOrder.refNumber) }
+      : null,
+    lines: invoice.lines.map(serializeLine),
     payments: invoice.payments.map((payment) => ({
       ...payment,
       refNumber: formatRef("PMT", payment.refNumber),

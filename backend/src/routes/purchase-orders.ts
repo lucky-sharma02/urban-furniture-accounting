@@ -6,15 +6,11 @@ import { prisma } from "../lib/prisma";
 
 const router = Router();
 
-// Optional "Budget Analytics" tag — a non-empty string id or null.
-function parseAnalyticAccountId(value: unknown): string | null {
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
-
 interface LineInput {
   productId: string;
   quantity: number;
   unitPrice: number;
+  analyticAccountId?: string | null;
 }
 
 function isValidLine(line: unknown): line is LineInput {
@@ -26,13 +22,36 @@ function isValidLine(line: unknown): line is LineInput {
     typeof l.quantity === "number" &&
     l.quantity > 0 &&
     typeof l.unitPrice === "number" &&
-    l.unitPrice >= 0
+    l.unitPrice >= 0 &&
+    (l.analyticAccountId == null || typeof l.analyticAccountId === "string")
   );
+}
+
+// Shape a validated line for a Prisma `create`, normalising the optional analytic tag.
+function lineCreateData(line: LineInput) {
+  return {
+    productId: line.productId,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    analyticAccountId:
+      typeof line.analyticAccountId === "string" && line.analyticAccountId.length > 0
+        ? line.analyticAccountId
+        : null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeLine(line: any) {
+  return {
+    ...line,
+    quantity: line.quantity.toNumber(),
+    unitPrice: line.unitPrice.toNumber(),
+  };
 }
 
 router.get("/", async (_req, res) => {
   const purchaseOrders = await prisma.purchaseOrder.findMany({
-    include: { lines: true, vendor: true, analyticAccount: true },
+    include: { lines: { include: { analyticAccount: true } }, vendor: true },
     orderBy: { date: "desc" },
   });
 
@@ -40,11 +59,7 @@ router.get("/", async (_req, res) => {
     purchaseOrders.map((po) => ({
       ...po,
       refNumber: formatRef("PO", po.refNumber),
-      lines: po.lines.map((line) => ({
-        ...line,
-        quantity: line.quantity.toNumber(),
-        unitPrice: line.unitPrice.toNumber(),
-      })),
+      lines: po.lines.map(serializeLine),
     })),
   );
 });
@@ -53,10 +68,9 @@ router.get("/:id", async (req, res) => {
   const purchaseOrder = await prisma.purchaseOrder.findUnique({
     where: { id: req.params.id },
     include: {
-      lines: { include: { product: true } },
+      lines: { include: { product: true, analyticAccount: true } },
       vendor: true,
       vendorBills: true,
-      analyticAccount: true,
     },
   });
 
@@ -67,11 +81,7 @@ router.get("/:id", async (req, res) => {
   res.json({
     ...purchaseOrder,
     refNumber: formatRef("PO", purchaseOrder.refNumber),
-    lines: purchaseOrder.lines.map((line) => ({
-      ...line,
-      quantity: line.quantity.toNumber(),
-      unitPrice: line.unitPrice.toNumber(),
-    })),
+    lines: purchaseOrder.lines.map(serializeLine),
     vendorBills: purchaseOrder.vendorBills.map((bill) => ({
       ...bill,
       refNumber: formatRef("BILL", bill.refNumber),
@@ -81,72 +91,56 @@ router.get("/:id", async (req, res) => {
   });
 });
 
-router.post("/", async (req, res) => {
-  const { vendorId, date, lines } = req.body;
-  const analyticAccountId = parseAnalyticAccountId(req.body.analyticAccountId);
+function validateBody(body: Record<string, unknown>) {
+  if (typeof body.vendorId !== "string" || body.vendorId.length === 0) {
+    return { error: "vendorId is required" as const };
+  }
+  if (typeof body.date !== "string" || Number.isNaN(Date.parse(body.date))) {
+    return { error: "a valid date is required" as const };
+  }
+  if (!Array.isArray(body.lines) || body.lines.length === 0 || !body.lines.every(isValidLine)) {
+    return {
+      error: "at least one line is required, each with productId, quantity, and unitPrice" as const,
+    };
+  }
+  return { vendorId: body.vendorId, date: new Date(body.date), lines: body.lines as LineInput[] };
+}
 
-  if (typeof vendorId !== "string" || vendorId.length === 0) {
-    return res.status(400).json({ error: "vendorId is required" });
-  }
-  if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
-    return res.status(400).json({ error: "a valid date is required" });
-  }
-  if (!Array.isArray(lines) || lines.length === 0 || !lines.every(isValidLine)) {
-    return res.status(400).json({
-      error: "at least one line is required, each with productId, quantity, and unitPrice",
-    });
-  }
+router.post("/", async (req, res) => {
+  const parsed = validateBody(req.body ?? {});
+  if ("error" in parsed) return res.status(400).json({ error: parsed.error });
 
   const purchaseOrder = await prisma.purchaseOrder.create({
     data: {
-      vendorId,
-      date: new Date(date),
-      analyticAccountId,
-      lines: {
-        create: lines.map((line: LineInput) => ({
-          productId: line.productId,
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-        })),
-      },
+      vendorId: parsed.vendorId,
+      date: parsed.date,
+      lines: { create: parsed.lines.map(lineCreateData) },
     },
     include: { lines: true },
   });
 
-  const total = purchaseOrder.lines.reduce(
-    (sum, line) => sum + line.quantity.toNumber() * line.unitPrice.toNumber(),
-    0,
+  const warnings = await budgetWarnings(
+    purchaseOrder.lines.map((l) => ({
+      analyticAccountId: l.analyticAccountId,
+      amount: l.quantity.toNumber() * l.unitPrice.toNumber(),
+    })),
+    "Expenses",
+    purchaseOrder.date,
   );
 
   res.status(201).json({
     ...purchaseOrder,
     refNumber: formatRef("PO", purchaseOrder.refNumber),
-    lines: purchaseOrder.lines.map((line) => ({
-      ...line,
-      quantity: line.quantity.toNumber(),
-      unitPrice: line.unitPrice.toNumber(),
-    })),
-    budgetWarnings: await budgetWarnings(analyticAccountId, "Expenses", total, purchaseOrder.date),
+    lines: purchaseOrder.lines.map(serializeLine),
+    budgetWarnings: warnings,
   });
 });
 
 // Replaces vendor/date/lines wholesale — only permitted while the PO is still Draft,
 // since a Billed PO has already generated a VendorBill from its current line amounts.
 router.put("/:id", async (req, res) => {
-  const { vendorId, date, lines } = req.body;
-  const analyticAccountId = parseAnalyticAccountId(req.body.analyticAccountId);
-
-  if (typeof vendorId !== "string" || vendorId.length === 0) {
-    return res.status(400).json({ error: "vendorId is required" });
-  }
-  if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
-    return res.status(400).json({ error: "a valid date is required" });
-  }
-  if (!Array.isArray(lines) || lines.length === 0 || !lines.every(isValidLine)) {
-    return res.status(400).json({
-      error: "at least one line is required, each with productId, quantity, and unitPrice",
-    });
-  }
+  const parsed = validateBody(req.body ?? {});
+  if ("error" in parsed) return res.status(400).json({ error: parsed.error });
 
   const existing = await prisma.purchaseOrder.findUnique({ where: { id: req.params.id } });
   if (!existing) {
@@ -161,16 +155,9 @@ router.put("/:id", async (req, res) => {
     return tx.purchaseOrder.update({
       where: { id: existing.id },
       data: {
-        vendorId,
-        date: new Date(date),
-        analyticAccountId,
-        lines: {
-          create: lines.map((line: LineInput) => ({
-            productId: line.productId,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-          })),
-        },
+        vendorId: parsed.vendorId,
+        date: parsed.date,
+        lines: { create: parsed.lines.map(lineCreateData) },
       },
       include: { lines: true },
     });
@@ -179,16 +166,13 @@ router.put("/:id", async (req, res) => {
   res.json({
     ...purchaseOrder,
     refNumber: formatRef("PO", purchaseOrder.refNumber),
-    lines: purchaseOrder.lines.map((line) => ({
-      ...line,
-      quantity: line.quantity.toNumber(),
-      unitPrice: line.unitPrice.toNumber(),
-    })),
+    lines: purchaseOrder.lines.map(serializeLine),
   });
 });
 
 // Converts a Draft PO into a VendorBill and immediately posts it (Debit Purchase
 // Expense / Credit Creditors) via postVendorBill() — never bypass the engine here.
+// Line-level Budget Analytics tags are carried over onto the bill's lines.
 router.post("/:id/convert-to-bill", async (req, res) => {
   const purchaseOrder = await prisma.purchaseOrder.findUnique({
     where: { id: req.params.id },
@@ -206,24 +190,35 @@ router.post("/:id/convert-to-bill", async (req, res) => {
     (sum, line) => sum + line.quantity.toNumber() * line.unitPrice.toNumber(),
     0,
   );
+  const billDate = new Date();
 
   const vendorBill = await prisma.vendorBill.create({
     data: {
       purchaseOrderId: purchaseOrder.id,
       vendorId: purchaseOrder.vendorId,
-      date: new Date(),
+      date: billDate,
       amount,
       amountDue: amount,
       status: "Draft",
-      analyticAccountId: purchaseOrder.analyticAccountId,
+      lines: {
+        create: purchaseOrder.lines.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          analyticAccountId: line.analyticAccountId,
+        })),
+      },
     },
+    include: { lines: true },
   });
 
   const warnings = await budgetWarnings(
-    purchaseOrder.analyticAccountId,
+    vendorBill.lines.map((l) => ({
+      analyticAccountId: l.analyticAccountId,
+      amount: l.quantity.toNumber() * l.unitPrice.toNumber(),
+    })),
     "Expenses",
-    amount,
-    vendorBill.date,
+    billDate,
   );
 
   const purchaseJournal = await getJournalByName("Purchase Journal");
@@ -232,7 +227,7 @@ router.post("/:id/convert-to-bill", async (req, res) => {
     journalId: purchaseJournal.id,
     vendorId: purchaseOrder.vendorId,
     amount,
-    date: vendorBill.date,
+    date: billDate,
     reference: `PO ${formatRef("PO", purchaseOrder.refNumber)}`,
     sourceId: vendorBill.id,
   });
@@ -247,6 +242,7 @@ router.post("/:id/convert-to-bill", async (req, res) => {
     refNumber: formatRef("BILL", vendorBill.refNumber),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
+    lines: vendorBill.lines.map(serializeLine),
     budgetWarnings: warnings,
   });
 });

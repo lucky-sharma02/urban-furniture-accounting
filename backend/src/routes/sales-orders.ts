@@ -9,15 +9,11 @@ const router = Router();
 // Flat rate applied to every generated invoice's base amount.
 const GST_RATE = 0.18;
 
-// Optional "Budget Analytics" tag — a non-empty string id or null.
-function parseAnalyticAccountId(value: unknown): string | null {
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
-
 interface LineInput {
   productId: string;
   quantity: number;
   unitPrice: number;
+  analyticAccountId?: string | null;
 }
 
 function isValidLine(line: unknown): line is LineInput {
@@ -29,13 +25,50 @@ function isValidLine(line: unknown): line is LineInput {
     typeof l.quantity === "number" &&
     l.quantity > 0 &&
     typeof l.unitPrice === "number" &&
-    l.unitPrice >= 0
+    l.unitPrice >= 0 &&
+    (l.analyticAccountId == null || typeof l.analyticAccountId === "string")
   );
+}
+
+function lineCreateData(line: LineInput) {
+  return {
+    productId: line.productId,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    analyticAccountId:
+      typeof line.analyticAccountId === "string" && line.analyticAccountId.length > 0
+        ? line.analyticAccountId
+        : null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeLine(line: any) {
+  return {
+    ...line,
+    quantity: line.quantity.toNumber(),
+    unitPrice: line.unitPrice.toNumber(),
+  };
+}
+
+function validateBody(body: Record<string, unknown>) {
+  if (typeof body.customerId !== "string" || body.customerId.length === 0) {
+    return { error: "customerId is required" as const };
+  }
+  if (typeof body.date !== "string" || Number.isNaN(Date.parse(body.date))) {
+    return { error: "a valid date is required" as const };
+  }
+  if (!Array.isArray(body.lines) || body.lines.length === 0 || !body.lines.every(isValidLine)) {
+    return {
+      error: "at least one line is required, each with productId, quantity, and unitPrice" as const,
+    };
+  }
+  return { customerId: body.customerId, date: new Date(body.date), lines: body.lines as LineInput[] };
 }
 
 router.get("/", async (_req, res) => {
   const salesOrders = await prisma.salesOrder.findMany({
-    include: { lines: true, customer: true, analyticAccount: true },
+    include: { lines: { include: { analyticAccount: true } }, customer: true },
     orderBy: { date: "desc" },
   });
 
@@ -43,11 +76,7 @@ router.get("/", async (_req, res) => {
     salesOrders.map((so) => ({
       ...so,
       refNumber: formatRef("SO", so.refNumber),
-      lines: so.lines.map((line) => ({
-        ...line,
-        quantity: line.quantity.toNumber(),
-        unitPrice: line.unitPrice.toNumber(),
-      })),
+      lines: so.lines.map(serializeLine),
     })),
   );
 });
@@ -56,10 +85,9 @@ router.get("/:id", async (req, res) => {
   const salesOrder = await prisma.salesOrder.findUnique({
     where: { id: req.params.id },
     include: {
-      lines: { include: { product: true } },
+      lines: { include: { product: true, analyticAccount: true } },
       customer: true,
       invoices: true,
-      analyticAccount: true,
     },
   });
 
@@ -70,11 +98,7 @@ router.get("/:id", async (req, res) => {
   res.json({
     ...salesOrder,
     refNumber: formatRef("SO", salesOrder.refNumber),
-    lines: salesOrder.lines.map((line) => ({
-      ...line,
-      quantity: line.quantity.toNumber(),
-      unitPrice: line.unitPrice.toNumber(),
-    })),
+    lines: salesOrder.lines.map(serializeLine),
     invoices: salesOrder.invoices.map((invoice) => ({
       ...invoice,
       refNumber: formatRef("INV", invoice.refNumber),
@@ -87,71 +111,40 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { customerId, date, lines } = req.body;
-  const analyticAccountId = parseAnalyticAccountId(req.body.analyticAccountId);
-
-  if (typeof customerId !== "string" || customerId.length === 0) {
-    return res.status(400).json({ error: "customerId is required" });
-  }
-  if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
-    return res.status(400).json({ error: "a valid date is required" });
-  }
-  if (!Array.isArray(lines) || lines.length === 0 || !lines.every(isValidLine)) {
-    return res.status(400).json({
-      error: "at least one line is required, each with productId, quantity, and unitPrice",
-    });
-  }
+  const parsed = validateBody(req.body ?? {});
+  if ("error" in parsed) return res.status(400).json({ error: parsed.error });
 
   const salesOrder = await prisma.salesOrder.create({
     data: {
-      customerId,
-      date: new Date(date),
-      analyticAccountId,
-      lines: {
-        create: lines.map((line: LineInput) => ({
-          productId: line.productId,
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-        })),
-      },
+      customerId: parsed.customerId,
+      date: parsed.date,
+      lines: { create: parsed.lines.map(lineCreateData) },
     },
     include: { lines: true },
   });
 
-  const netTotal = salesOrder.lines.reduce(
-    (sum, line) => sum + line.quantity.toNumber() * line.unitPrice.toNumber(),
-    0,
+  const warnings = await budgetWarnings(
+    salesOrder.lines.map((l) => ({
+      analyticAccountId: l.analyticAccountId,
+      amount: l.quantity.toNumber() * l.unitPrice.toNumber(),
+    })),
+    "Income",
+    salesOrder.date,
   );
 
   res.status(201).json({
     ...salesOrder,
     refNumber: formatRef("SO", salesOrder.refNumber),
-    lines: salesOrder.lines.map((line) => ({
-      ...line,
-      quantity: line.quantity.toNumber(),
-      unitPrice: line.unitPrice.toNumber(),
-    })),
-    budgetWarnings: await budgetWarnings(analyticAccountId, "Income", netTotal, salesOrder.date),
+    lines: salesOrder.lines.map(serializeLine),
+    budgetWarnings: warnings,
   });
 });
 
 // Replaces customer/date/lines wholesale — only permitted while the SO is still Draft,
 // since an Invoiced SO has already generated a CustomerInvoice from its current line amounts.
 router.put("/:id", async (req, res) => {
-  const { customerId, date, lines } = req.body;
-  const analyticAccountId = parseAnalyticAccountId(req.body.analyticAccountId);
-
-  if (typeof customerId !== "string" || customerId.length === 0) {
-    return res.status(400).json({ error: "customerId is required" });
-  }
-  if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
-    return res.status(400).json({ error: "a valid date is required" });
-  }
-  if (!Array.isArray(lines) || lines.length === 0 || !lines.every(isValidLine)) {
-    return res.status(400).json({
-      error: "at least one line is required, each with productId, quantity, and unitPrice",
-    });
-  }
+  const parsed = validateBody(req.body ?? {});
+  if ("error" in parsed) return res.status(400).json({ error: parsed.error });
 
   const existing = await prisma.salesOrder.findUnique({ where: { id: req.params.id } });
   if (!existing) {
@@ -166,16 +159,9 @@ router.put("/:id", async (req, res) => {
     return tx.salesOrder.update({
       where: { id: existing.id },
       data: {
-        customerId,
-        date: new Date(date),
-        analyticAccountId,
-        lines: {
-          create: lines.map((line: LineInput) => ({
-            productId: line.productId,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-          })),
-        },
+        customerId: parsed.customerId,
+        date: parsed.date,
+        lines: { create: parsed.lines.map(lineCreateData) },
       },
       include: { lines: true },
     });
@@ -184,17 +170,14 @@ router.put("/:id", async (req, res) => {
   res.json({
     ...salesOrder,
     refNumber: formatRef("SO", salesOrder.refNumber),
-    lines: salesOrder.lines.map((line) => ({
-      ...line,
-      quantity: line.quantity.toNumber(),
-      unitPrice: line.unitPrice.toNumber(),
-    })),
+    lines: salesOrder.lines.map(serializeLine),
   });
 });
 
 // Converts a Draft SO into a CustomerInvoice (base amount + 18% GST) and immediately
 // posts it (Debit Debtors / Credit Sales Income + Credit Tax Payable) via
-// postCustomerInvoice() — never bypass the engine here.
+// postCustomerInvoice() — never bypass the engine here. Line-level Budget Analytics
+// tags are carried over onto the invoice's lines.
 router.post("/:id/generate-invoice", async (req, res) => {
   const salesOrder = await prisma.salesOrder.findUnique({
     where: { id: req.params.id },
@@ -214,22 +197,38 @@ router.post("/:id/generate-invoice", async (req, res) => {
   );
   const taxAmount = Math.round(baseAmount * GST_RATE * 100) / 100;
   const amount = baseAmount + taxAmount;
+  const invoiceDate = new Date();
 
   const invoice = await prisma.customerInvoice.create({
     data: {
       salesOrderId: salesOrder.id,
       customerId: salesOrder.customerId,
-      date: new Date(),
+      date: invoiceDate,
       baseAmount,
       taxAmount,
       amount,
       amountDue: amount,
       status: "Draft",
-      analyticAccountId: salesOrder.analyticAccountId,
+      lines: {
+        create: salesOrder.lines.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          analyticAccountId: line.analyticAccountId,
+        })),
+      },
     },
+    include: { lines: true },
   });
 
-  const warnings = await budgetWarnings(salesOrder.analyticAccountId, "Income", baseAmount, invoice.date);
+  const warnings = await budgetWarnings(
+    invoice.lines.map((l) => ({
+      analyticAccountId: l.analyticAccountId,
+      amount: l.quantity.toNumber() * l.unitPrice.toNumber(),
+    })),
+    "Income",
+    invoiceDate,
+  );
 
   const salesJournal = await getJournalByName("Sales Journal");
 
@@ -238,7 +237,7 @@ router.post("/:id/generate-invoice", async (req, res) => {
     customerId: salesOrder.customerId,
     baseAmount,
     taxAmount,
-    date: invoice.date,
+    date: invoiceDate,
     reference: `SO ${formatRef("SO", salesOrder.refNumber)}`,
     sourceId: invoice.id,
   });
@@ -255,6 +254,7 @@ router.post("/:id/generate-invoice", async (req, res) => {
     taxAmount: invoice.taxAmount.toNumber(),
     amount: invoice.amount.toNumber(),
     amountDue: invoice.amountDue.toNumber(),
+    lines: invoice.lines.map(serializeLine),
     budgetWarnings: warnings,
   });
 });

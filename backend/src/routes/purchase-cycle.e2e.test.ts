@@ -11,6 +11,7 @@ async function cleanupBill(billId: string, poId?: string) {
   await prisma.journalEntryLine.deleteMany({ where: { journalEntry: { sourceId: { in: sourceIds } } } });
   await prisma.journalEntry.deleteMany({ where: { sourceId: { in: sourceIds } } });
   await prisma.payment.deleteMany({ where: { vendorBillId: billId } });
+  await prisma.vendorBillLine.deleteMany({ where: { vendorBillId: billId } });
   await prisma.vendorBill.deleteMany({ where: { id: billId } });
   if (poId) {
     await prisma.purchaseOrderLine.deleteMany({ where: { purchaseOrderId: poId } });
@@ -65,12 +66,17 @@ describe("Purchase cycle E2E", () => {
 
   it("Bill -> two partial payments transitions Draft -> Partial -> Paid", async () => {
     const vendor = await getOrCreateTestVendor();
+    const product = await prisma.product.findFirstOrThrow();
     const bank = await getAccountByName("Bank");
 
     const billRes = await request(app)
       .post("/vendor-bills")
       .set("Authorization", testAuthHeader())
-      .send({ vendorId: vendor.id, date: "2026-01-01", amount: 1000 });
+      .send({
+        vendorId: vendor.id,
+        date: "2026-01-01",
+        lines: [{ productId: product.id, quantity: 1, unitPrice: 1000 }],
+      });
     expect(billRes.status).toBe(201);
     expect(billRes.body.status).toBe("Draft");
     expect(billRes.body.amountDue).toBe(1000);

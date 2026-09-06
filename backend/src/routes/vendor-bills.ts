@@ -13,10 +13,48 @@ function toCents(amount: number): number {
   return Math.round(amount * 100);
 }
 
+interface LineInput {
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  analyticAccountId?: string | null;
+}
+
+function isValidLine(line: unknown): line is LineInput {
+  if (typeof line !== "object" || line === null) return false;
+  const l = line as Record<string, unknown>;
+  return (
+    typeof l.productId === "string" &&
+    l.productId.length > 0 &&
+    typeof l.quantity === "number" &&
+    l.quantity > 0 &&
+    typeof l.unitPrice === "number" &&
+    l.unitPrice >= 0 &&
+    (l.analyticAccountId == null || typeof l.analyticAccountId === "string")
+  );
+}
+
+function lineCreateData(line: LineInput) {
+  return {
+    productId: line.productId,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    analyticAccountId:
+      typeof line.analyticAccountId === "string" && line.analyticAccountId.length > 0
+        ? line.analyticAccountId
+        : null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeLine(line: any) {
+  return { ...line, quantity: line.quantity.toNumber(), unitPrice: line.unitPrice.toNumber() };
+}
+
 router.get("/", async (req, res) => {
   const vendorBills = await prisma.vendorBill.findMany({
     where: scopeWhere(req, "vendorId"),
-    include: { vendor: true, analyticAccount: true },
+    include: { vendor: true, lines: { include: { analyticAccount: true } } },
     orderBy: { date: "desc" },
   });
 
@@ -26,6 +64,7 @@ router.get("/", async (req, res) => {
       refNumber: formatRef("BILL", bill.refNumber),
       amount: bill.amount.toNumber(),
       amountDue: bill.amountDue.toNumber(),
+      lines: bill.lines.map(serializeLine),
     })),
   );
 });
@@ -35,7 +74,8 @@ router.get("/:id", async (req, res) => {
     where: { id: req.params.id },
     include: {
       vendor: true,
-      analyticAccount: true,
+      purchaseOrder: { select: { id: true, refNumber: true } },
+      lines: { include: { product: true, analyticAccount: true } },
       payments: { include: { paymentAccount: true } },
     },
   });
@@ -49,6 +89,10 @@ router.get("/:id", async (req, res) => {
     refNumber: formatRef("BILL", vendorBill.refNumber),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
+    purchaseOrder: vendorBill.purchaseOrder
+      ? { id: vendorBill.purchaseOrder.id, refNumber: formatRef("PO", vendorBill.purchaseOrder.refNumber) }
+      : null,
+    lines: vendorBill.lines.map(serializeLine),
     payments: vendorBill.payments.map((payment) => ({
       ...payment,
       refNumber: formatRef("PMT", payment.refNumber),
@@ -64,11 +108,7 @@ router.post("/", async (req, res) => {
     return res.status(403).json({ error: "insufficient permissions" });
   }
 
-  const { vendorId, date, amount } = req.body;
-  const analyticAccountId =
-    typeof req.body.analyticAccountId === "string" && req.body.analyticAccountId.length > 0
-      ? req.body.analyticAccountId
-      : null;
+  const { vendorId, date, lines } = req.body ?? {};
 
   if (typeof vendorId !== "string" || vendorId.length === 0) {
     return res.status(400).json({ error: "vendorId is required" });
@@ -76,13 +116,17 @@ router.post("/", async (req, res) => {
   if (typeof date !== "string" || Number.isNaN(Date.parse(date))) {
     return res.status(400).json({ error: "a valid date is required" });
   }
-  if (typeof amount !== "number" || amount <= 0) {
-    return res.status(400).json({ error: "amount must be a positive number" });
+  if (!Array.isArray(lines) || lines.length === 0 || !lines.every(isValidLine)) {
+    return res.status(400).json({
+      error: "at least one line is required, each with productId, quantity, and unitPrice",
+    });
   }
 
   const billDate = new Date(date);
-
-  const warnings = await budgetWarnings(analyticAccountId, "Expenses", amount, billDate);
+  const amount = (lines as LineInput[]).reduce((sum, l) => sum + l.quantity * l.unitPrice, 0);
+  if (amount <= 0) {
+    return res.status(400).json({ error: "the bill total must be greater than zero" });
+  }
 
   const vendorBill = await prisma.vendorBill.create({
     data: {
@@ -92,9 +136,19 @@ router.post("/", async (req, res) => {
       amount,
       amountDue: amount,
       status: "Draft",
-      analyticAccountId,
+      lines: { create: (lines as LineInput[]).map(lineCreateData) },
     },
+    include: { lines: true },
   });
+
+  const warnings = await budgetWarnings(
+    vendorBill.lines.map((l) => ({
+      analyticAccountId: l.analyticAccountId,
+      amount: l.quantity.toNumber() * l.unitPrice.toNumber(),
+    })),
+    "Expenses",
+    billDate,
+  );
 
   const purchaseJournal = await getJournalByName("Purchase Journal");
 
@@ -112,6 +166,7 @@ router.post("/", async (req, res) => {
     refNumber: formatRef("BILL", vendorBill.refNumber),
     amount: vendorBill.amount.toNumber(),
     amountDue: vendorBill.amountDue.toNumber(),
+    lines: vendorBill.lines.map(serializeLine),
     budgetWarnings: warnings,
   });
 });

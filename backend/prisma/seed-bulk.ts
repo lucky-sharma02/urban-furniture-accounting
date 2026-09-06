@@ -159,7 +159,15 @@ async function main() {
 
     const amount = lineInputs.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0);
     const bill = await prisma.vendorBill.create({
-      data: { purchaseOrderId: po.id, vendorId: vendor.id, date, amount, amountDue: amount, status: "Draft" },
+      data: {
+        purchaseOrderId: po.id,
+        vendorId: vendor.id,
+        date,
+        amount,
+        amountDue: amount,
+        status: "Draft",
+        lines: { create: lineInputs.map((l) => ({ ...l })) },
+      },
     });
     await postVendorBill({
       journalId: purchaseJournal.id,
@@ -222,6 +230,7 @@ async function main() {
         amount,
         amountDue: amount,
         status: "Draft",
+        lines: { create: lineInputs.map((l) => ({ ...l })) },
       },
     });
     await postCustomerInvoice({

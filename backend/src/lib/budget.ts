@@ -1,29 +1,31 @@
 import type { BudgetType } from "@prisma/client";
 import { prisma } from "./prisma";
 
-// "Achieved" for a budget line = total of the tagged realized documents inside the
+// "Achieved" for a budget line = total of the tagged transaction lines inside the
 // budget period. Never stored — always recomputed from the source documents:
-//   Income   -> Customer Invoice base amounts (ex-GST revenue) tagged with the analytic
-//   Expenses -> Vendor Bill amounts tagged with the analytic
+//   Income   -> Customer Invoice line subtotals (qty x unit price, ex-GST) tagged with the analytic
+//   Expenses -> Vendor Bill line subtotals tagged with the analytic
 export async function achievedForAnalytic(
   analyticAccountId: string,
   type: BudgetType,
   periodStart: Date,
   periodEnd: Date,
 ): Promise<number> {
+  const period = { gte: periodStart, lte: periodEnd };
+
   if (type === "Income") {
-    const agg = await prisma.customerInvoice.aggregate({
-      _sum: { baseAmount: true },
-      where: { analyticAccountId, date: { gte: periodStart, lte: periodEnd } },
+    const lines = await prisma.customerInvoiceLine.findMany({
+      where: { analyticAccountId, customerInvoice: { date: period } },
+      select: { quantity: true, unitPrice: true },
     });
-    return agg._sum.baseAmount?.toNumber() ?? 0;
+    return lines.reduce((sum, l) => sum + l.quantity.toNumber() * l.unitPrice.toNumber(), 0);
   }
 
-  const agg = await prisma.vendorBill.aggregate({
-    _sum: { amount: true },
-    where: { analyticAccountId, date: { gte: periodStart, lte: periodEnd } },
+  const lines = await prisma.vendorBillLine.findMany({
+    where: { analyticAccountId, vendorBill: { date: period } },
+    select: { quantity: true, unitPrice: true },
   });
-  return agg._sum.amount?.toNumber() ?? 0;
+  return lines.reduce((sum, l) => sum + l.quantity.toNumber() * l.unitPrice.toNumber(), 0);
 }
 
 export interface BudgetLineReport {
@@ -119,47 +121,62 @@ function inr(n: number): string {
   return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Non-blocking check run when a PO / Bill / SO / Invoice is confirmed: would booking
-// `incomingAmount` against this analytic push any Confirmed budget line past its
-// committed amount? Returns one human-readable warning per breached line (empty if
-// the transaction has no analytic tag or no matching confirmed budget).
+export interface IncomingLine {
+  analyticAccountId: string | null | undefined;
+  amount: number;
+}
+
+// Non-blocking check run when a PO / Bill / SO / Invoice is confirmed: for each
+// analytic tag on the incoming lines, would booking that much push a Confirmed
+// budget line of the given type past its committed amount? Returns one
+// human-readable warning per breached budget line (empty when nothing is tagged
+// or no matching confirmed budget exists).
 export async function budgetWarnings(
-  analyticAccountId: string | null | undefined,
+  incomingLines: IncomingLine[],
   type: BudgetType,
-  incomingAmount: number,
   date: Date,
 ): Promise<string[]> {
-  if (!analyticAccountId) return [];
-
-  const lines = await prisma.budgetLine.findMany({
-    where: {
-      analyticAccountId,
-      type,
-      budget: {
-        status: "Confirmed",
-        periodStart: { lte: date },
-        periodEnd: { gte: date },
-      },
-    },
-    include: { budget: true, analyticAccount: true },
-  });
+  const incomingByAnalytic = new Map<string, number>();
+  for (const line of incomingLines) {
+    if (!line.analyticAccountId) continue;
+    incomingByAnalytic.set(
+      line.analyticAccountId,
+      (incomingByAnalytic.get(line.analyticAccountId) ?? 0) + line.amount,
+    );
+  }
+  if (incomingByAnalytic.size === 0) return [];
 
   const warnings: string[] = [];
-  for (const line of lines) {
-    const committed = line.committedAmount.toNumber();
-    const achieved = await achievedForAnalytic(
-      line.analyticAccountId,
-      line.type,
-      line.budget.periodStart,
-      line.budget.periodEnd,
-    );
-    const projected = achieved + incomingAmount;
-    if (projected > committed) {
-      warnings.push(
-        `Exceeds Approved Budget — "${line.analyticAccount.name}" on budget "${line.budget.name}" ` +
-          `would reach ${inr(projected)} against a committed ${inr(committed)} ` +
-          `(over by ${inr(projected - committed)}).`,
+  for (const [analyticAccountId, incoming] of incomingByAnalytic) {
+    const budgetLines = await prisma.budgetLine.findMany({
+      where: {
+        analyticAccountId,
+        type,
+        budget: {
+          status: "Confirmed",
+          periodStart: { lte: date },
+          periodEnd: { gte: date },
+        },
+      },
+      include: { budget: true, analyticAccount: true },
+    });
+
+    for (const bl of budgetLines) {
+      const committed = bl.committedAmount.toNumber();
+      const achieved = await achievedForAnalytic(
+        bl.analyticAccountId,
+        bl.type,
+        bl.budget.periodStart,
+        bl.budget.periodEnd,
       );
+      const projected = achieved + incoming;
+      if (projected > committed) {
+        warnings.push(
+          `Exceeds Approved Budget — "${bl.analyticAccount.name}" on budget "${bl.budget.name}" ` +
+            `would reach ${inr(projected)} against a committed ${inr(committed)} ` +
+            `(over by ${inr(projected - committed)}).`,
+        );
+      }
     }
   }
   return warnings;
