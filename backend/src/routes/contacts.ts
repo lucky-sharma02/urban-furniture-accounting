@@ -6,6 +6,21 @@ const router = Router();
 const CONTACT_TYPES = Object.values(ContactType);
 const ADDRESS_FIELDS = ["street", "city", "state", "country", "pincode"] as const;
 
+// A downscaled data: URL from the client. Cap the size so a base64 blob never
+// bloats the row — the frontend resizes to ~320px before sending.
+const MAX_IMAGE_CHARS = 300_000;
+function parseImageDataUrl(value: unknown): { imageDataUrl?: string | null } | { error: string } {
+  if (value === undefined) return {};
+  if (value === null || value === "") return { imageDataUrl: null };
+  if (typeof value !== "string" || !value.startsWith("data:image/")) {
+    return { error: "imageDataUrl must be an image data URL" };
+  }
+  if (value.length > MAX_IMAGE_CHARS) {
+    return { error: "the image is too large — please use a smaller file" };
+  }
+  return { imageDataUrl: value };
+}
+
 // Pick the structured-address fields present in the body, coercing "" to null.
 function addressData(body: Record<string, unknown>) {
   const data: Record<string, string | null> = {};
@@ -49,9 +64,12 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "email is required" });
   }
 
+  const image = parseImageDataUrl(req.body?.imageDataUrl);
+  if ("error" in image) return res.status(400).json({ error: image.error });
+
   try {
     const contact = await prisma.contact.create({
-      data: { name, type, email, phone, address, ...addressData(req.body ?? {}) },
+      data: { name, type, email, phone, address, ...addressData(req.body ?? {}), ...image },
     });
     res.status(201).json(contact);
   } catch (err) {
@@ -69,6 +87,9 @@ router.put("/:id", async (req, res) => {
     return res.status(400).json({ error: `type must be one of: ${CONTACT_TYPES.join(", ")}` });
   }
 
+  const image = parseImageDataUrl(req.body?.imageDataUrl);
+  if ("error" in image) return res.status(400).json({ error: image.error });
+
   try {
     const contact = await prisma.contact.update({
       where: { id: req.params.id },
@@ -79,6 +100,7 @@ router.put("/:id", async (req, res) => {
         ...(phone !== undefined ? { phone } : {}),
         ...(address !== undefined ? { address } : {}),
         ...addressData(req.body ?? {}),
+        ...image,
       },
     });
     res.json(contact);

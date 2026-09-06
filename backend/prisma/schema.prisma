@@ -130,6 +130,7 @@ model Contact {
   state             String?
   country           String?
   pincode           String?
+  imageDataUrl       String?
   isArchived        Boolean            @default(false)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -148,6 +149,7 @@ model Product {
   name               String              @unique
   category           String
   type               ProductType         @default(Goods)
+  imageDataUrl        String?
   salesPrice         Decimal             @db.Decimal(12, 2)
   purchasePrice      Decimal             @db.Decimal(12, 2)
   isArchived         Boolean             @default(false)

@@ -33,6 +33,20 @@ function isValidType(value: unknown): value is (typeof PRODUCT_TYPES)[number] {
   return typeof value === "string" && (PRODUCT_TYPES as readonly string[]).includes(value);
 }
 
+// A downscaled data: URL from the client (resized to ~320px before sending).
+const MAX_IMAGE_CHARS = 300_000;
+function parseImageDataUrl(value: unknown): { imageDataUrl?: string | null } | { error: string } {
+  if (value === undefined) return {};
+  if (value === null || value === "") return { imageDataUrl: null };
+  if (typeof value !== "string" || !value.startsWith("data:image/")) {
+    return { error: "imageDataUrl must be an image data URL" };
+  }
+  if (value.length > MAX_IMAGE_CHARS) {
+    return { error: "the image is too large — please use a smaller file" };
+  }
+  return { imageDataUrl: value };
+}
+
 router.get("/", async (req, res) => {
   const includeArchived = req.query.includeArchived === "true";
   const products = await prisma.product.findMany({
@@ -61,9 +75,19 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "purchasePrice must be a non-negative number" });
   }
 
+  const image = parseImageDataUrl(req.body?.imageDataUrl);
+  if ("error" in image) return res.status(400).json({ error: image.error });
+
   try {
     const product = await prisma.product.create({
-      data: { name, category, salesPrice, purchasePrice, ...(isValidType(type) ? { type } : {}) },
+      data: {
+        name,
+        category,
+        salesPrice,
+        purchasePrice,
+        ...(isValidType(type) ? { type } : {}),
+        ...image,
+      },
     });
     res.status(201).json(serializeProduct(product));
   } catch (err) {
@@ -87,6 +111,9 @@ router.put("/:id", async (req, res) => {
     return res.status(400).json({ error: "type must be Goods, Service or Combo" });
   }
 
+  const image = parseImageDataUrl(req.body?.imageDataUrl);
+  if ("error" in image) return res.status(400).json({ error: image.error });
+
   try {
     const product = await prisma.product.update({
       where: { id: req.params.id },
@@ -96,6 +123,7 @@ router.put("/:id", async (req, res) => {
         ...(isValidType(type) ? { type } : {}),
         ...(salesPrice !== undefined ? { salesPrice } : {}),
         ...(purchasePrice !== undefined ? { purchasePrice } : {}),
+        ...image,
       },
     });
     res.json(serializeProduct(product));
