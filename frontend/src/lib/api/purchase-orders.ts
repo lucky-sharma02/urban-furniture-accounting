@@ -8,6 +8,8 @@ export interface PurchaseOrderLine {
   productId: string;
   quantity: number;
   unitPrice: number;
+  analyticAccountId: string | null;
+  analyticAccount?: { id: string; name: string } | null;
 }
 
 export interface PurchaseOrder {
@@ -16,8 +18,6 @@ export interface PurchaseOrder {
   vendorId: string;
   date: string;
   status: PurchaseOrderStatus;
-  analyticAccountId: string | null;
-  analyticAccount?: { id: string; name: string } | null;
   lines: PurchaseOrderLine[];
   createdAt: string;
   updatedAt: string;
@@ -27,12 +27,12 @@ export interface PurchaseOrderLineInput {
   productId: string;
   quantity: number;
   unitPrice: number;
+  analyticAccountId?: string | null;
 }
 
 export interface CreatePurchaseOrderInput {
   vendorId: string;
   date: string;
-  analyticAccountId?: string | null;
   lines: PurchaseOrderLineInput[];
 }
 

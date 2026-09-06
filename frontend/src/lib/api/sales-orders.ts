@@ -8,6 +8,8 @@ export interface SalesOrderLine {
   productId: string;
   quantity: number;
   unitPrice: number;
+  analyticAccountId: string | null;
+  analyticAccount?: { id: string; name: string } | null;
 }
 
 export interface SalesOrder {
@@ -16,8 +18,6 @@ export interface SalesOrder {
   customerId: string;
   date: string;
   status: SalesOrderStatus;
-  analyticAccountId: string | null;
-  analyticAccount?: { id: string; name: string } | null;
   lines: SalesOrderLine[];
   createdAt: string;
   updatedAt: string;
@@ -27,12 +27,12 @@ export interface SalesOrderLineInput {
   productId: string;
   quantity: number;
   unitPrice: number;
+  analyticAccountId?: string | null;
 }
 
 export interface CreateSalesOrderInput {
   customerId: string;
   date: string;
-  analyticAccountId?: string | null;
   lines: SalesOrderLineInput[];
 }
 

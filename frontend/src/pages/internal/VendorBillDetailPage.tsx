@@ -1,21 +1,33 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RecordPaymentDialog } from "@/components/purchases/RecordPaymentDialog";
-import { getVendorBill, type Payment, type VendorBill } from "@/lib/api/vendor-bills";
+import {
+  getVendorBill,
+  type Payment,
+  type VendorBill,
+  type VendorBillLine,
+} from "@/lib/api/vendor-bills";
+
+const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+type VendorBillDetail = VendorBill & {
+  payments: Payment[];
+  lines: (VendorBillLine & { product?: { name: string } })[];
+};
 
 export function VendorBillDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [bill, setBill] = useState<(VendorBill & { payments: Payment[] }) | null>(null);
+  const [bill, setBill] = useState<VendorBillDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   function load() {
     if (!id) return;
     getVendorBill(id).then((data) => {
-      setBill(data);
+      setBill(data as VendorBillDetail);
       setLoading(false);
     });
   }
@@ -53,24 +65,28 @@ export function VendorBillDetailPage() {
           <h1 className="text-xl font-bold font-display tracking-tight text-slate-900">Vendor Bill Details</h1>
         </div>
 
-        {bill.status !== "Paid" && (
-          <Button onClick={() => setPaymentDialogOpen(true)} size="sm" className="h-9 px-4 gap-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle transition-colors">
-            Record Payment
+        <div className="flex flex-wrap gap-2">
+          {bill.purchaseOrder && (
+            <Button asChild variant="outline" size="sm" className="h-9 border-slate-200 text-xs font-medium">
+              <Link to={`/purchase-orders/${bill.purchaseOrder.id}`}>PO {bill.purchaseOrder.refNumber}</Link>
+            </Button>
+          )}
+          <Button asChild variant="outline" size="sm" className="h-9 border-slate-200 text-xs font-medium">
+            <Link to="/reports/budget">Budget</Link>
           </Button>
-        )}
+          {bill.status !== "Paid" && (
+            <Button onClick={() => setPaymentDialogOpen(true)} size="sm" className="h-9 px-4 gap-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle transition-colors">
+              Record Payment
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Bill Overview Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Bill Date</p>
           <p className="text-sm font-semibold text-slate-900 mt-1">{new Date(bill.date).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}</p>
-        </div>
-        <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Budget Analytics</p>
-          <p className="text-sm font-semibold text-slate-900 mt-1">
-            {bill.analyticAccount?.name ?? <span className="text-slate-400">Not tagged</span>}
-          </p>
         </div>
         <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Amount</p>
@@ -106,6 +122,42 @@ export function VendorBillDetailPage() {
         amountDue={bill.amountDue}
         onRecorded={load}
       />
+
+      {bill.lines.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-bold font-display text-slate-900">Bill Lines</h2>
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="border-slate-200 hover:bg-transparent">
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Product</TableHead>
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Chart of Account</TableHead>
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Budget Analytics</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Qty</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Unit Price</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Line Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bill.lines.map((line) => (
+                  <TableRow key={line.id} className="border-slate-100">
+                    <TableCell className="px-4 py-3 text-xs text-slate-900">{line.product?.name ?? line.productId}</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-slate-500">Purchase</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-slate-600">
+                      {line.analyticAccount?.name ?? <span className="text-slate-400">—</span>}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{line.quantity}</TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{inr(line.unitPrice)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-900">
+                      {inr(line.quantity * line.unitPrice)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3">
         <h2 className="text-sm font-bold font-display text-slate-900">Payment History &amp; Settlements</h2>

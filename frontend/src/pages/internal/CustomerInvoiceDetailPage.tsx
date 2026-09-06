@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RecordInvoicePaymentDialog } from "@/components/sales/RecordInvoicePaymentDialog";
-import { getCustomerInvoice, type CustomerInvoice, type Payment } from "@/lib/api/customer-invoices";
+import {
+  getCustomerInvoice,
+  type CustomerInvoice,
+  type CustomerInvoiceLine,
+  type Payment,
+} from "@/lib/api/customer-invoices";
 
 const inr = (n: number) =>
   `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -12,16 +17,21 @@ const inr = (n: number) =>
 const longDate = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" });
 
+type CustomerInvoiceDetail = CustomerInvoice & {
+  payments: Payment[];
+  lines: (CustomerInvoiceLine & { product?: { name: string } })[];
+};
+
 export function CustomerInvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [invoice, setInvoice] = useState<(CustomerInvoice & { payments: Payment[] }) | null>(null);
+  const [invoice, setInvoice] = useState<CustomerInvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   function load() {
     if (!id) return;
     getCustomerInvoice(id).then((data) => {
-      setInvoice(data);
+      setInvoice(data as CustomerInvoiceDetail);
       setLoading(false);
     });
   }
@@ -59,15 +69,25 @@ export function CustomerInvoiceDetailPage() {
           <h1 className="font-display text-xl font-bold tracking-tight text-slate-900">Customer Invoice Details</h1>
         </div>
 
-        {invoice.status !== "Paid" && (
-          <Button
-            onClick={() => setPaymentDialogOpen(true)}
-            size="sm"
-            className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle transition-colors hover:bg-slate-800"
-          >
-            Record Payment
+        <div className="flex flex-wrap gap-2">
+          {invoice.salesOrder && (
+            <Button asChild variant="outline" size="sm" className="h-9 border-slate-200 text-xs font-medium">
+              <Link to={`/sales-orders/${invoice.salesOrder.id}`}>SO {invoice.salesOrder.refNumber}</Link>
+            </Button>
+          )}
+          <Button asChild variant="outline" size="sm" className="h-9 border-slate-200 text-xs font-medium">
+            <Link to="/reports/budget">Budget</Link>
           </Button>
-        )}
+          {invoice.status !== "Paid" && (
+            <Button
+              onClick={() => setPaymentDialogOpen(true)}
+              size="sm"
+              className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle transition-colors hover:bg-slate-800"
+            >
+              Record Payment
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -81,7 +101,6 @@ export function CustomerInvoiceDetailPage() {
             value: inr(invoice.amountDue),
             accent: invoice.amountDue > 0 ? "text-rose-600" : "text-emerald-700",
           },
-          { label: "Budget Analytics", value: invoice.analyticAccount?.name ?? "Not tagged" },
         ].map((cell) => (
           <div key={cell.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{cell.label}</p>
@@ -108,6 +127,42 @@ export function CustomerInvoiceDetailPage() {
           </div>
         </div>
       </div>
+
+      {invoice.lines.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="font-display text-sm font-bold text-slate-900">Invoice Lines</h2>
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow className="border-slate-200 hover:bg-transparent">
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Product</TableHead>
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Chart of Account</TableHead>
+                  <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Budget Analytics</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Qty</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Unit Price</TableHead>
+                  <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Line Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoice.lines.map((line) => (
+                  <TableRow key={line.id} className="border-slate-100">
+                    <TableCell className="px-4 py-3 text-xs text-slate-900">{line.product?.name ?? line.productId}</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-slate-500">Sales</TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-slate-600">
+                      {line.analyticAccount?.name ?? <span className="text-slate-400">—</span>}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{line.quantity}</TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{inr(line.unitPrice)}</TableCell>
+                    <TableCell className="px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-900">
+                      {inr(line.quantity * line.unitPrice)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
 
       <RecordInvoicePaymentDialog
         open={paymentDialogOpen}

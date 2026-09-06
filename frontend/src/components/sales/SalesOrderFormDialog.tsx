@@ -40,7 +40,7 @@ interface LineRow extends SalesOrderLineInput {
 }
 
 function emptyRow(): LineRow {
-  return { key: crypto.randomUUID(), productId: "", quantity: 1, unitPrice: 0 };
+  return { key: crypto.randomUUID(), productId: "", quantity: 1, unitPrice: 0, analyticAccountId: null };
 }
 
 export function SalesOrderFormDialog({
@@ -53,7 +53,6 @@ export function SalesOrderFormDialog({
   const [products, setProducts] = useState<Product[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [analyticAccountId, setAnalyticAccountId] = useState("");
   const [lines, setLines] = useState<LineRow[]>([emptyRow()]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -66,19 +65,18 @@ export function SalesOrderFormDialog({
       if (editingOrder) {
         setCustomerId(editingOrder.customerId);
         setDate(editingOrder.date.slice(0, 10));
-        setAnalyticAccountId(editingOrder.analyticAccountId ?? "");
         setLines(
           editingOrder.lines.map((line) => ({
             key: crypto.randomUUID(),
             productId: line.productId,
             quantity: line.quantity,
             unitPrice: line.unitPrice,
+            analyticAccountId: line.analyticAccountId,
           })),
         );
       } else {
         setCustomerId("");
         setDate(new Date().toISOString().slice(0, 10));
-        setAnalyticAccountId("");
         setLines([emptyRow()]);
       }
       setWarnings([]);
@@ -122,8 +120,12 @@ export function SalesOrderFormDialog({
       const input = {
         customerId,
         date,
-        analyticAccountId: analyticAccountId || null,
-        lines: lines.map(({ productId, quantity, unitPrice }) => ({ productId, quantity, unitPrice })),
+        lines: lines.map(({ productId, quantity, unitPrice, analyticAccountId }) => ({
+          productId,
+          quantity,
+          unitPrice,
+          analyticAccountId: analyticAccountId || null,
+        })),
       };
       if (editingOrder) {
         await updateSalesOrder(editingOrder.id, input);
@@ -147,7 +149,7 @@ export function SalesOrderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border border-slate-200 bg-white shadow-elevated sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border border-slate-200 bg-white shadow-elevated sm:max-w-3xl">
         <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
             <DialogTitle className="font-display text-base font-bold text-slate-900">
@@ -186,30 +188,24 @@ export function SalesOrderFormDialog({
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="analytic" className="text-xs font-semibold text-slate-700">
-                Budget Analytics
-              </Label>
-              <AnalyticAccountSelect id="analytic" value={analyticAccountId} onChange={setAnalyticAccountId} />
-              <p className="text-[11px] text-slate-400">
-                Books this order&apos;s invoice against a budget line (Income). Optional.
-              </p>
-            </div>
-
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-2">
               <Label required className="font-display text-xs font-bold uppercase tracking-wider text-slate-900">
                 Order Line Items
               </Label>
 
-              <div className="grid grid-cols-[1fr_90px_110px_70px] gap-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_70px_96px_36px] gap-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <span>Product Item</span>
+                <span>Budget Analytics</span>
                 <span className="text-center">Qty</span>
                 <span className="text-right">Unit Price</span>
                 <span />
               </div>
 
               {lines.map((line) => (
-                <div key={line.key} className="grid grid-cols-[1fr_90px_110px_70px] items-center gap-2">
+                <div
+                  key={line.key}
+                  className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_70px_96px_36px] items-center gap-2"
+                >
                   <Select
                     value={line.productId}
                     onValueChange={(value) => {
@@ -231,6 +227,11 @@ export function SalesOrderFormDialog({
                       ))}
                     </SelectContent>
                   </Select>
+
+                  <AnalyticAccountSelect
+                    value={line.analyticAccountId ?? ""}
+                    onChange={(id) => updateLine(line.key, { analyticAccountId: id || null })}
+                  />
 
                   <Input
                     type="number"
@@ -256,11 +257,12 @@ export function SalesOrderFormDialog({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-9 text-xs text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                    className="h-9 px-0 text-xs text-slate-400 hover:bg-rose-50 hover:text-rose-600"
                     disabled={lines.length <= 1}
                     onClick={() => removeLine(line.key)}
+                    aria-label="Remove line"
                   >
-                    Delete
+                    ✕
                   </Button>
                 </div>
               ))}

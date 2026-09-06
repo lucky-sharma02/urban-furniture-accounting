@@ -12,26 +12,42 @@ export interface Payment {
   createdAt: string;
 }
 
+export interface VendorBillLine {
+  id: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  analyticAccountId: string | null;
+  analyticAccount?: { id: string; name: string } | null;
+  product?: { name: string };
+}
+
 export interface VendorBill {
   id: string;
   refNumber: string;
   purchaseOrderId: string | null;
+  purchaseOrder?: { id: string; refNumber: string } | null;
   vendorId: string;
   date: string;
   amount: number;
   amountDue: number;
   status: DocumentStatus;
-  analyticAccountId: string | null;
-  analyticAccount?: { id: string; name: string } | null;
+  lines: VendorBillLine[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface VendorBillLineInput {
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  analyticAccountId?: string | null;
 }
 
 export interface CreateVendorBillInput {
   vendorId: string;
   date: string;
-  amount: number;
-  analyticAccountId?: string | null;
+  lines: VendorBillLineInput[];
 }
 
 export interface RecordPaymentInput {

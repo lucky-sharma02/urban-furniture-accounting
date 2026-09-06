@@ -15,8 +15,10 @@ import { Pencil, ArrowRight } from "lucide-react";
 
 interface PurchaseOrderDetail extends PurchaseOrder {
   vendor?: { name: string };
-  analyticAccount?: { id: string; name: string } | null;
-  lines: (PurchaseOrderLine & { product?: { name: string } })[];
+  lines: (PurchaseOrderLine & {
+    product?: { name: string };
+    analyticAccount?: { id: string; name: string } | null;
+  })[];
   vendorBills: VendorBill[];
 }
 
@@ -135,7 +137,7 @@ export function PurchaseOrderDetailPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Order Date</p>
           <p className="mt-1 text-sm font-semibold text-slate-900">{longDate(po.date)}</p>
@@ -143,12 +145,6 @@ export function PurchaseOrderDetailPage() {
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Order Total</p>
           <p className="mt-1 font-display text-base font-bold tabular-nums text-slate-900">{inr(total)}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Budget Analytics</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">
-            {po.analyticAccount?.name ?? <span className="text-slate-400">Not tagged</span>}
-          </p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Status</p>
@@ -174,6 +170,7 @@ export function PurchaseOrderDetailPage() {
             <TableHeader className="bg-slate-50">
               <TableRow className="border-slate-200 hover:bg-transparent">
                 <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Product</TableHead>
+                <TableHead className="h-10 px-4 text-xs font-semibold text-slate-700">Budget Analytics</TableHead>
                 <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Qty</TableHead>
                 <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Unit Price</TableHead>
                 <TableHead className="h-10 px-4 text-right text-xs font-semibold text-slate-700">Line Amount</TableHead>
@@ -183,6 +180,9 @@ export function PurchaseOrderDetailPage() {
               {po.lines.map((line) => (
                 <TableRow key={line.id} className="border-slate-100">
                   <TableCell className="px-4 py-3 text-xs text-slate-900">{line.product?.name ?? line.productId}</TableCell>
+                  <TableCell className="px-4 py-3 text-xs text-slate-600">
+                    {line.analyticAccount?.name ?? <span className="text-slate-400">—</span>}
+                  </TableCell>
                   <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{line.quantity}</TableCell>
                   <TableCell className="px-4 py-3 text-right text-xs tabular-nums text-slate-600">{inr(line.unitPrice)}</TableCell>
                   <TableCell className="px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-900">

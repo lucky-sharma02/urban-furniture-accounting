@@ -12,10 +12,21 @@ export interface Payment {
   createdAt: string;
 }
 
+export interface CustomerInvoiceLine {
+  id: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  analyticAccountId: string | null;
+  analyticAccount?: { id: string; name: string } | null;
+  product?: { name: string };
+}
+
 export interface CustomerInvoice {
   id: string;
   refNumber: string;
   salesOrderId: string | null;
+  salesOrder?: { id: string; refNumber: string } | null;
   customerId: string;
   date: string;
   baseAmount: number;
@@ -23,8 +34,7 @@ export interface CustomerInvoice {
   amount: number;
   amountDue: number;
   status: DocumentStatus;
-  analyticAccountId: string | null;
-  analyticAccount?: { id: string; name: string } | null;
+  lines: CustomerInvoiceLine[];
   budgetWarnings?: string[];
   createdAt: string;
   updatedAt: string;
