@@ -124,12 +124,26 @@ router.post("/:id/confirm", async (req, res) => {
   res.json({ id: existing.id, status: "Confirmed" });
 });
 
+// Cancel. A Draft budget that is itself a pending revision is discarded outright and
+// its predecessor is restored to Confirmed — so a revision started by mistake leaves
+// no dead-ended "Revised" budget behind. Any other budget is simply marked Cancelled.
 router.post("/:id/cancel", async (req, res) => {
   const existing = await prisma.budget.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "budget not found" });
   if (existing.status === "Cancelled") {
     return res.status(400).json({ error: "budget is already cancelled" });
   }
+
+  if (existing.status === "Draft" && existing.revisedFromId) {
+    const restoredId = existing.revisedFromId;
+    await prisma.$transaction([
+      // BudgetLine rows cascade-delete with the budget.
+      prisma.budget.delete({ where: { id: existing.id } }),
+      prisma.budget.update({ where: { id: restoredId }, data: { status: "Confirmed" } }),
+    ]);
+    return res.json({ id: existing.id, status: "Discarded", restoredBudgetId: restoredId });
+  }
+
   await prisma.budget.update({ where: { id: existing.id }, data: { status: "Cancelled" } });
   res.json({ id: existing.id, status: "Cancelled" });
 });
