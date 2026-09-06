@@ -107,7 +107,7 @@ export function CustomerInvoicesPage() {
                             : "border-rose-200 bg-rose-50 text-rose-700"
                       }`}
                     >
-                      {invoice.status}
+                      {invoice.status === "Draft" ? "Not Paid" : invoice.status}
                     </Badge>
                   </TableCell>
                 </TableRow>

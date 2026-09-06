@@ -29,6 +29,8 @@ export interface VendorBill {
   purchaseOrder?: { id: string; refNumber: string } | null;
   vendorId: string;
   date: string;
+  dueDate: string | null;
+  reference: string | null;
   amount: number;
   amountDue: number;
   status: DocumentStatus;
@@ -47,6 +49,8 @@ export interface VendorBillLineInput {
 export interface CreateVendorBillInput {
   vendorId: string;
   date: string;
+  dueDate?: string | null;
+  reference?: string | null;
   lines: VendorBillLineInput[];
 }
 

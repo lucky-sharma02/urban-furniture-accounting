@@ -113,7 +113,7 @@ export function VendorBillsPage() {
                           : "bg-rose-50 text-rose-700 border-rose-200"
                       }`}
                     >
-                      {bill.status}
+                      {bill.status === "Draft" ? "Not Paid" : bill.status}
                     </Badge>
                   </TableCell>
                 </TableRow>

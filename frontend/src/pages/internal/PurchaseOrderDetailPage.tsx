@@ -4,14 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PurchaseOrderFormDialog } from "@/components/purchases/PurchaseOrderFormDialog";
+import { BudgetWarningNotice } from "@/components/shared/BudgetWarningNotice";
 import {
+  confirmPurchaseOrder,
   convertPurchaseOrderToBill,
   getPurchaseOrder,
   type PurchaseOrder,
   type PurchaseOrderLine,
 } from "@/lib/api/purchase-orders";
 import type { VendorBill } from "@/lib/api/vendor-bills";
-import { Pencil, ArrowRight } from "lucide-react";
+import { Pencil, ArrowRight, CheckCircle2 } from "lucide-react";
 
 interface PurchaseOrderDetail extends PurchaseOrder {
   vendor?: { name: string };
@@ -32,8 +34,9 @@ export function PurchaseOrderDetailPage() {
   const [po, setPo] = useState<PurchaseOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
-  const [converting, setConverting] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [conversion, setConversion] = useState<{ billId: string; warnings: string[] } | null>(null);
+  const [confirmWarnings, setConfirmWarnings] = useState<string[]>([]);
 
   function load() {
     if (!id) return;
@@ -65,8 +68,19 @@ export function PurchaseOrderDetailPage() {
 
   const total = po.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
 
+  async function handleConfirm() {
+    setBusy(true);
+    try {
+      const updated = await confirmPurchaseOrder(po!.id);
+      setConfirmWarnings(updated.budgetWarnings ?? []);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleConvert() {
-    setConverting(true);
+    setBusy(true);
     try {
       const bill = await convertPurchaseOrderToBill(po!.id);
       const warnings = bill.budgetWarnings ?? [];
@@ -76,7 +90,7 @@ export function PurchaseOrderDetailPage() {
         navigate(`/vendor-bills/${bill.id}`);
       }
     } finally {
-      setConverting(false);
+      setBusy(false);
     }
   }
 
@@ -93,31 +107,48 @@ export function PurchaseOrderDetailPage() {
             {po.vendor?.name ?? po.vendorId}
           </h1>
         </div>
-        {po.status === "Draft" && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditOpen(true)}
-              className="h-9 gap-1.5 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              disabled={converting}
-              onClick={handleConvert}
-              className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
-            >
-              {converting ? "Converting..." : "Convert to Bill"}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
+        {po.status !== "Billed" && (
+          <div className="flex flex-wrap gap-2">
+            {po.status === "Draft" && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditOpen(true)}
+                  className="h-9 gap-1.5 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={handleConfirm}
+                  className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {busy ? "Working..." : "Confirm"}
+                </Button>
+              </>
+            )}
+            {po.status === "Confirmed" && (
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={handleConvert}
+                className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+              >
+                {busy ? "Converting..." : "Create Bill"}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         )}
       </div>
 
       <PurchaseOrderFormDialog open={editOpen} onOpenChange={setEditOpen} onSaved={load} editingOrder={po} />
+
+      <BudgetWarningNotice warnings={confirmWarnings} title="Purchase order confirmed — budget notice" />
 
       {conversion && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 shadow-card">
@@ -154,7 +185,9 @@ export function PurchaseOrderDetailPage() {
               className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
                 po.status === "Billed"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-amber-200 bg-amber-50 text-amber-800"
+                  : po.status === "Confirmed"
+                    ? "border-sky-200 bg-sky-50 text-sky-700"
+                    : "border-amber-200 bg-amber-50 text-amber-800"
               }`}
             >
               {po.status}

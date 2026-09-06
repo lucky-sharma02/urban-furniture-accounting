@@ -29,6 +29,8 @@ export interface CustomerInvoice {
   salesOrder?: { id: string; refNumber: string } | null;
   customerId: string;
   date: string;
+  dueDate: string | null;
+  reference: string | null;
   baseAmount: number;
   taxAmount: number;
   amount: number;

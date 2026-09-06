@@ -4,14 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SalesOrderFormDialog } from "@/components/sales/SalesOrderFormDialog";
+import { BudgetWarningNotice } from "@/components/shared/BudgetWarningNotice";
 import {
+  confirmSalesOrder,
   generateInvoiceFromSalesOrder,
   getSalesOrder,
   type SalesOrder,
   type SalesOrderLine,
 } from "@/lib/api/sales-orders";
 import type { CustomerInvoice } from "@/lib/api/customer-invoices";
-import { Pencil, ArrowRight } from "lucide-react";
+import { Pencil, ArrowRight, CheckCircle2 } from "lucide-react";
 
 interface SalesOrderDetail extends SalesOrder {
   customer?: { name: string };
@@ -32,8 +34,9 @@ export function SalesOrderDetailPage() {
   const [so, setSo] = useState<SalesOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [generated, setGenerated] = useState<{ invoiceId: string; warnings: string[] } | null>(null);
+  const [confirmWarnings, setConfirmWarnings] = useState<string[]>([]);
 
   function load() {
     if (!id) return;
@@ -65,8 +68,19 @@ export function SalesOrderDetailPage() {
 
   const total = so.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
 
+  async function handleConfirm() {
+    setBusy(true);
+    try {
+      const updated = await confirmSalesOrder(so!.id);
+      setConfirmWarnings(updated.budgetWarnings ?? []);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleGenerateInvoice() {
-    setGenerating(true);
+    setBusy(true);
     try {
       const invoice = await generateInvoiceFromSalesOrder(so!.id);
       const warnings = invoice.budgetWarnings ?? [];
@@ -76,7 +90,7 @@ export function SalesOrderDetailPage() {
         navigate(`/customer-invoices/${invoice.id}`);
       }
     } finally {
-      setGenerating(false);
+      setBusy(false);
     }
   }
 
@@ -93,29 +107,46 @@ export function SalesOrderDetailPage() {
             {so.customer?.name ?? so.customerId}
           </h1>
         </div>
-        {so.status === "Draft" && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditOpen(true)}
-              className="h-9 gap-1.5 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              disabled={generating}
-              onClick={handleGenerateInvoice}
-              className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
-            >
-              {generating ? "Generating..." : "Generate Invoice"}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
+        {so.status !== "Invoiced" && (
+          <div className="flex flex-wrap gap-2">
+            {so.status === "Draft" && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditOpen(true)}
+                  className="h-9 gap-1.5 border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={handleConfirm}
+                  className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {busy ? "Working..." : "Confirm"}
+                </Button>
+              </>
+            )}
+            {so.status === "Confirmed" && (
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={handleGenerateInvoice}
+                className="h-9 gap-1.5 bg-slate-900 px-4 text-xs font-semibold text-white shadow-subtle hover:bg-slate-800"
+              >
+                {busy ? "Generating..." : "Create Invoice"}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         )}
       </div>
+
+      <BudgetWarningNotice warnings={confirmWarnings} title="Sales order confirmed — budget notice" />
 
       <SalesOrderFormDialog open={editOpen} onOpenChange={setEditOpen} onSaved={load} editingOrder={so} />
 
@@ -154,7 +185,9 @@ export function SalesOrderDetailPage() {
               className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
                 so.status === "Invoiced"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-amber-200 bg-amber-50 text-amber-800"
+                  : so.status === "Confirmed"
+                    ? "border-sky-200 bg-sky-50 text-sky-700"
+                    : "border-amber-200 bg-amber-50 text-amber-800"
               }`}
             >
               {so.status}

@@ -58,6 +58,13 @@ export function updatePurchaseOrder(id: string, input: CreatePurchaseOrderInput)
   });
 }
 
+export function confirmPurchaseOrder(id: string) {
+  return apiFetch<PurchaseOrder & { budgetWarnings?: string[] }>(
+    `/purchase-orders/${id}/confirm`,
+    { method: "POST" },
+  );
+}
+
 export function convertPurchaseOrderToBill(id: string) {
   return apiFetch<VendorBill & { budgetWarnings?: string[] }>(
     `/purchase-orders/${id}/convert-to-bill`,

@@ -116,14 +116,16 @@ export function PurchaseOrdersPage() {
                       className={`text-[10px] font-medium ${
                         po.status === "Billed"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-amber-200 bg-amber-50 text-amber-800"
+                          : po.status === "Confirmed"
+                            ? "border-sky-200 bg-sky-50 text-sky-700"
+                            : "border-amber-200 bg-amber-50 text-amber-800"
                       }`}
                     >
                       {po.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-right">
-                    {po.status === "Draft" && (
+                    {po.status === "Confirmed" && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -134,7 +136,7 @@ export function PurchaseOrdersPage() {
                         }}
                         className="h-7 gap-1 px-2 text-xs font-medium text-slate-900 hover:bg-slate-100"
                       >
-                        {converting === po.id ? "Converting..." : "Convert to Bill"}
+                        {converting === po.id ? "Converting..." : "Create Bill"}
                         <ArrowRight className="h-3 w-3" />
                       </Button>
                     )}

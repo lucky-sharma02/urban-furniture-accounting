@@ -42,6 +42,8 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
   const [products, setProducts] = useState<Product[]>([]);
   const [vendorId, setVendorId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState("");
+  const [reference, setReference] = useState("");
   const [lines, setLines] = useState<LineRow[]>([emptyRow()]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,8 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
       listProducts().then(setProducts);
       setVendorId("");
       setDate(new Date().toISOString().slice(0, 10));
+      setDueDate("");
+      setReference("");
       setLines([emptyRow()]);
       setWarnings([]);
       setError(null);
@@ -93,6 +97,8 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
       const bill = await createVendorBill({
         vendorId,
         date,
+        dueDate: dueDate || null,
+        reference: reference.trim() || null,
         lines: lines.map(({ productId, quantity, unitPrice, analyticAccountId }) => ({
           productId,
           quantity,
@@ -154,6 +160,32 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
                   className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bill-ref" className="text-xs font-semibold text-slate-700">
+                  Bill Reference
+                </Label>
+                <Input
+                  id="bill-ref"
+                  placeholder="e.g. ABC-26-001"
+                  className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="due-date" className="text-xs font-semibold text-slate-700">
+                  Due Date
+                </Label>
+                <Input
+                  id="due-date"
+                  type="date"
+                  className="h-9 border-slate-200 bg-slate-50 text-xs focus:bg-white"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
                 />
               </div>
             </div>

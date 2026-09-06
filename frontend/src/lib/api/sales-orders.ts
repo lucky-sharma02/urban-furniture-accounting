@@ -58,6 +58,12 @@ export function updateSalesOrder(id: string, input: CreateSalesOrderInput) {
   });
 }
 
+export function confirmSalesOrder(id: string) {
+  return apiFetch<SalesOrder & { budgetWarnings?: string[] }>(`/sales-orders/${id}/confirm`, {
+    method: "POST",
+  });
+}
+
 export function generateInvoiceFromSalesOrder(id: string) {
   return apiFetch<CustomerInvoice & { budgetWarnings?: string[] }>(
     `/sales-orders/${id}/generate-invoice`,

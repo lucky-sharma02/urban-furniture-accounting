@@ -116,14 +116,16 @@ export function SalesOrdersPage() {
                       className={`text-[10px] font-medium ${
                         so.status === "Invoiced"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-amber-200 bg-amber-50 text-amber-800"
+                          : so.status === "Confirmed"
+                            ? "border-sky-200 bg-sky-50 text-sky-700"
+                            : "border-amber-200 bg-amber-50 text-amber-800"
                       }`}
                     >
                       {so.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {so.status === "Draft" && (
+                    {so.status === "Confirmed" && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -134,7 +136,7 @@ export function SalesOrdersPage() {
                         }}
                         className="h-7 gap-1 px-2 text-xs font-medium text-slate-900 hover:bg-slate-100"
                       >
-                        {generating === so.id ? "Generating..." : "Generate Invoice"}
+                        {generating === so.id ? "Generating..." : "Create Invoice"}
                         <ArrowRight className="h-3 w-3" />
                       </Button>
                     )}

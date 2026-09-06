@@ -17,6 +17,8 @@ const inr = (n: number) =>
 const longDate = (d: string) =>
   new Date(d).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" });
 
+const payLabel = (s: string) => (s === "Draft" ? "Not Paid" : s);
+
 type CustomerInvoiceDetail = CustomerInvoice & {
   payments: Payment[];
   lines: (CustomerInvoiceLine & { product?: { name: string } })[];
@@ -93,6 +95,8 @@ export function CustomerInvoiceDetailPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {[
           { label: "Invoice Date", value: longDate(invoice.date) },
+          { label: "Due Date", value: invoice.dueDate ? longDate(invoice.dueDate) : "—" },
+          { label: "Invoice Reference", value: invoice.reference ?? "—" },
           { label: "Base Amount", value: inr(invoice.baseAmount) },
           { label: "GST (18%)", value: inr(invoice.taxAmount) },
           { label: "Invoice Total", value: inr(invoice.amount), accent: "text-slate-900" },
@@ -122,7 +126,7 @@ export function CustomerInvoiceDetailPage() {
                     : "border-rose-200 bg-rose-50 text-rose-700"
               }`}
             >
-              {invoice.status}
+              {payLabel(invoice.status)}
             </Badge>
           </div>
         </div>

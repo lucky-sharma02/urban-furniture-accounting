@@ -12,6 +12,10 @@ import {
 } from "@/lib/api/vendor-bills";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const shortDate = (d: string) =>
+  new Date(d).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" });
+// Bills/invoices reuse the DocumentStatus enum, but the wireframe labels the unpaid state "Not Paid".
+const payLabel = (s: string) => (s === "Draft" ? "Not Paid" : s);
 
 type VendorBillDetail = VendorBill & {
   payments: Payment[];
@@ -83,18 +87,30 @@ export function VendorBillDetailPage() {
       </div>
 
       {/* Bill Overview Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Bill Date</p>
-          <p className="text-sm font-semibold text-slate-900 mt-1">{new Date(bill.date).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}</p>
+          <p className="text-sm font-semibold text-slate-900 mt-1">{shortDate(bill.date)}</p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Due Date</p>
+          <p className="text-sm font-semibold text-slate-900 mt-1">
+            {bill.dueDate ? shortDate(bill.dueDate) : <span className="text-slate-400">—</span>}
+          </p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Bill Reference</p>
+          <p className="text-sm font-semibold text-slate-900 mt-1">
+            {bill.reference ?? <span className="text-slate-400">—</span>}
+          </p>
         </div>
         <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Amount</p>
-          <p className="text-base font-bold font-display text-slate-900 mt-1 tabular-nums">₹{bill.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-base font-bold font-display text-slate-900 mt-1 tabular-nums">{inr(bill.amount)}</p>
         </div>
         <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Amount Due</p>
-          <p className={`text-base font-bold font-display mt-1 tabular-nums ${bill.amountDue > 0 ? "text-rose-600" : "text-emerald-700"}`}>₹{bill.amountDue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className={`text-base font-bold font-display mt-1 tabular-nums ${bill.amountDue > 0 ? "text-rose-600" : "text-emerald-700"}`}>{inr(bill.amountDue)}</p>
         </div>
         <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Payment Status</p>
@@ -109,7 +125,7 @@ export function VendorBillDetailPage() {
                   : "bg-rose-50 text-rose-700 border-rose-200"
               }`}
             >
-              {bill.status}
+              {payLabel(bill.status)}
             </Badge>
           </div>
         </div>
