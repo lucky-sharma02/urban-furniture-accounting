@@ -23,6 +23,9 @@ export interface CustomerInvoice {
   amount: number;
   amountDue: number;
   status: DocumentStatus;
+  analyticAccountId: string | null;
+  analyticAccount?: { id: string; name: string } | null;
+  budgetWarnings?: string[];
   createdAt: string;
   updatedAt: string;
 }

@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AnalyticAccountSelect } from "@/components/shared/AnalyticAccountSelect";
 import { listContacts, type Contact } from "@/lib/api/contacts";
 import { listProducts, type Product } from "@/lib/api/products";
 import {
@@ -51,6 +52,7 @@ export function PurchaseOrderFormDialog({
   const [products, setProducts] = useState<Product[]>([]);
   const [vendorId, setVendorId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [analyticAccountId, setAnalyticAccountId] = useState("");
   const [lines, setLines] = useState<LineRow[]>([emptyRow()]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -62,6 +64,7 @@ export function PurchaseOrderFormDialog({
       if (editingOrder) {
         setVendorId(editingOrder.vendorId);
         setDate(editingOrder.date.slice(0, 10));
+        setAnalyticAccountId(editingOrder.analyticAccountId ?? "");
         setLines(
           editingOrder.lines.map((line) => ({
             key: crypto.randomUUID(),
@@ -73,6 +76,7 @@ export function PurchaseOrderFormDialog({
       } else {
         setVendorId("");
         setDate(new Date().toISOString().slice(0, 10));
+        setAnalyticAccountId("");
         setLines([emptyRow()]);
       }
       setError(null);
@@ -115,6 +119,7 @@ export function PurchaseOrderFormDialog({
       const input = {
         vendorId,
         date,
+        analyticAccountId: analyticAccountId || null,
         lines: lines.map(({ productId, quantity, unitPrice }) => ({ productId, quantity, unitPrice })),
       };
       if (editingOrder) {
@@ -170,6 +175,16 @@ export function PurchaseOrderFormDialog({
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="analytic" className="text-xs font-semibold text-slate-700">
+                Budget Analytics
+              </Label>
+              <AnalyticAccountSelect id="analytic" value={analyticAccountId} onChange={setAnalyticAccountId} />
+              <p className="text-[11px] text-slate-400">
+                Books this order against a budget line (Expenses). Optional.
+              </p>
             </div>
 
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-2">

@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AnalyticAccountSelect } from "@/components/shared/AnalyticAccountSelect";
 import { listContacts, type Contact } from "@/lib/api/contacts";
 import { createVendorBill } from "@/lib/api/vendor-bills";
 import { firstError, isAmount, isIsoDate } from "@/lib/validation";
@@ -31,6 +32,8 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
   const [vendorId, setVendorId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState("");
+  const [analyticAccountId, setAnalyticAccountId] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -40,6 +43,8 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
       setVendorId("");
       setDate(new Date().toISOString().slice(0, 10));
       setAmount("");
+      setAnalyticAccountId("");
+      setWarnings([]);
       setError(null);
     }
   }, [open]);
@@ -61,9 +66,18 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
     setSaving(true);
     setError(null);
     try {
-      await createVendorBill({ vendorId, date, amount: Number(amount) });
+      const bill = await createVendorBill({
+        vendorId,
+        date,
+        amount: Number(amount),
+        analyticAccountId: analyticAccountId || null,
+      });
       onSaved();
-      onOpenChange(false);
+      if (bill.budgetWarnings && bill.budgetWarnings.length > 0) {
+        setWarnings(bill.budgetWarnings);
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -125,31 +139,61 @@ export function VendorBillFormDialog({ open, onOpenChange, onSaved }: VendorBill
               />
             </div>
 
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="analytic" className="text-xs font-semibold text-slate-700">Budget Analytics</Label>
+              <AnalyticAccountSelect id="analytic" value={analyticAccountId} onChange={setAnalyticAccountId} />
+              <p className="text-[11px] text-slate-400">Books this bill against a budget line (Expenses). Optional.</p>
+            </div>
+
             {error && (
               <div className="p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
                 {error}
               </div>
             )}
+
+            {warnings.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+                <p className="mb-1 font-semibold">Bill recorded — budget notice</p>
+                <ul className="list-disc space-y-0.5 pl-4">
+                  {warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs font-medium border-slate-200"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={saving || !vendorId}
-              className="h-9 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle ml-2"
-            >
-              {saving ? "Saving Bill..." : "Record Bill"}
-            </Button>
+            {warnings.length > 0 ? (
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800"
+                onClick={() => onOpenChange(false)}
+              >
+                Done
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs font-medium border-slate-200"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={saving || !vendorId}
+                  className="h-9 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-subtle ml-2"
+                >
+                  {saving ? "Saving Bill..." : "Record Bill"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

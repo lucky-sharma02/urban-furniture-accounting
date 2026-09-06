@@ -61,10 +61,16 @@ export function VendorBillDetailPage() {
       </div>
 
       {/* Bill Overview Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Bill Date</p>
           <p className="text-sm font-semibold text-slate-900 mt-1">{new Date(bill.date).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}</p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Budget Analytics</p>
+          <p className="text-sm font-semibold text-slate-900 mt-1">
+            {bill.analyticAccount?.name ?? <span className="text-slate-400">Not tagged</span>}
+          </p>
         </div>
         <div className="p-4 rounded-lg border border-slate-200 bg-white shadow-card">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Amount</p>

@@ -26,15 +26,28 @@ export interface ProfitAndLoss {
   totals: { income: number; expenses: number; netIncome: number };
 }
 
-export interface BudgetRow {
+export interface BudgetReportLine {
   id: string;
   analyticAccountId: string;
   analyticAccountName: string;
+  type: "Income" | "Expenses";
+  committedAmount: number;
+  achievedAmount: number;
+  achievedPct: number;
+  amountToAchieve: number;
+}
+
+export interface BudgetReport {
+  id: string;
+  name: string;
+  status: "Draft" | "Confirmed" | "Revised" | "Cancelled";
   periodStart: string;
   periodEnd: string;
-  plannedAmount: number;
-  actualAmount: number;
-  remainingAmount: number;
+  responsibleId: string | null;
+  responsibleName: string | null;
+  revisedFromId: string | null;
+  lines: BudgetReportLine[];
+  totals: { committed: number; achieved: number; amountToAchieve: number };
 }
 
 export function getBalanceSheet(asOf?: string) {
@@ -50,7 +63,7 @@ export function getProfitAndLoss(from?: string, to?: string) {
 }
 
 export function getBudgetReport() {
-  return apiFetch<BudgetRow[]>("/reports/budget");
+  return apiFetch<BudgetReport[]>("/reports/budget");
 }
 
 function triggerDownload(blob: Blob, filename: string) {

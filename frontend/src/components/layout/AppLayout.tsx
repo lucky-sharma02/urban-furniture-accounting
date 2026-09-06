@@ -195,7 +195,7 @@ const PAGE_CONTEXT: { match: (path: string) => boolean; ctx: PageContext }[] = [
     ctx: {
       title: "Budget Report",
       category: "Financial Reports",
-      desc: "Planned against actual spend by analytic account",
+      desc: "Committed against achieved by budget analytic — Income & Expenses",
     },
   },
   {

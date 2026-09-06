@@ -81,6 +81,7 @@ export function CustomerInvoiceDetailPage() {
             value: inr(invoice.amountDue),
             accent: invoice.amountDue > 0 ? "text-rose-600" : "text-emerald-700",
           },
+          { label: "Budget Analytics", value: invoice.analyticAccount?.name ?? "Not tagged" },
         ].map((cell) => (
           <div key={cell.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{cell.label}</p>

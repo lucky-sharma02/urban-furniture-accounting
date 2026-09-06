@@ -21,6 +21,8 @@ export interface VendorBill {
   amount: number;
   amountDue: number;
   status: DocumentStatus;
+  analyticAccountId: string | null;
+  analyticAccount?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +31,7 @@ export interface CreateVendorBillInput {
   vendorId: string;
   date: string;
   amount: number;
+  analyticAccountId?: string | null;
 }
 
 export interface RecordPaymentInput {
@@ -46,7 +49,7 @@ export function getVendorBill(id: string) {
 }
 
 export function createVendorBill(input: CreateVendorBillInput) {
-  return apiFetch<VendorBill>("/vendor-bills", {
+  return apiFetch<VendorBill & { budgetWarnings?: string[] }>("/vendor-bills", {
     method: "POST",
     body: JSON.stringify(input),
   });

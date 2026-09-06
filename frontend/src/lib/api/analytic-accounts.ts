@@ -1,3 +1,4 @@
+import type { BudgetType } from "@urban-furniture/shared";
 import { apiFetch } from "../api";
 
 export interface AnalyticAccount {
@@ -8,20 +9,18 @@ export interface AnalyticAccount {
   updatedAt: string;
 }
 
-export interface Budget {
-  id: string;
+export interface BudgetLineInput {
   analyticAccountId: string;
-  periodStart: string;
-  periodEnd: string;
-  plannedAmount: number;
-  createdAt: string;
-  updatedAt: string;
+  type: BudgetType;
+  committedAmount: number;
 }
 
 export interface CreateBudgetInput {
+  name: string;
   periodStart: string;
   periodEnd: string;
-  plannedAmount: number;
+  responsibleId?: string | null;
+  lines: BudgetLineInput[];
 }
 
 export function listAnalyticAccounts() {
@@ -35,13 +34,28 @@ export function createAnalyticAccount(name: string) {
   });
 }
 
-export function listBudgets(analyticAccountId: string) {
-  return apiFetch<Budget[]>(`/analytic-accounts/${analyticAccountId}/budgets`);
-}
-
-export function createBudget(analyticAccountId: string, input: CreateBudgetInput) {
-  return apiFetch<Budget>(`/analytic-accounts/${analyticAccountId}/budgets`, {
+export function createBudget(input: CreateBudgetInput) {
+  return apiFetch<{ id: string }>("/budgets", {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function updateBudget(id: string, input: CreateBudgetInput) {
+  return apiFetch<{ id: string }>(`/budgets/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function confirmBudget(id: string) {
+  return apiFetch<{ id: string; status: string }>(`/budgets/${id}/confirm`, { method: "POST" });
+}
+
+export function cancelBudget(id: string) {
+  return apiFetch<{ id: string; status: string }>(`/budgets/${id}/cancel`, { method: "POST" });
+}
+
+export function reviseBudget(id: string) {
+  return apiFetch<{ id: string }>(`/budgets/${id}/revise`, { method: "POST" });
 }

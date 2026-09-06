@@ -16,6 +16,8 @@ export interface PurchaseOrder {
   vendorId: string;
   date: string;
   status: PurchaseOrderStatus;
+  analyticAccountId: string | null;
+  analyticAccount?: { id: string; name: string } | null;
   lines: PurchaseOrderLine[];
   createdAt: string;
   updatedAt: string;
@@ -30,6 +32,7 @@ export interface PurchaseOrderLineInput {
 export interface CreatePurchaseOrderInput {
   vendorId: string;
   date: string;
+  analyticAccountId?: string | null;
   lines: PurchaseOrderLineInput[];
 }
 
@@ -56,5 +59,8 @@ export function updatePurchaseOrder(id: string, input: CreatePurchaseOrderInput)
 }
 
 export function convertPurchaseOrderToBill(id: string) {
-  return apiFetch<VendorBill>(`/purchase-orders/${id}/convert-to-bill`, { method: "POST" });
+  return apiFetch<VendorBill & { budgetWarnings?: string[] }>(
+    `/purchase-orders/${id}/convert-to-bill`,
+    { method: "POST" },
+  );
 }

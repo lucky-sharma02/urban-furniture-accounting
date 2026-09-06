@@ -15,6 +15,7 @@ import { Pencil, ArrowRight } from "lucide-react";
 
 interface SalesOrderDetail extends SalesOrder {
   customer?: { name: string };
+  analyticAccount?: { id: string; name: string } | null;
   lines: (SalesOrderLine & { product?: { name: string } })[];
   invoices: CustomerInvoice[];
 }
@@ -30,6 +31,7 @@ export function SalesOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState<{ invoiceId: string; warnings: string[] } | null>(null);
 
   function load() {
     if (!id) return;
@@ -65,7 +67,12 @@ export function SalesOrderDetailPage() {
     setGenerating(true);
     try {
       const invoice = await generateInvoiceFromSalesOrder(so!.id);
-      navigate(`/customer-invoices/${invoice.id}`);
+      const warnings = invoice.budgetWarnings ?? [];
+      if (warnings.length > 0) {
+        setGenerated({ invoiceId: invoice.id, warnings });
+      } else {
+        navigate(`/customer-invoices/${invoice.id}`);
+      }
     } finally {
       setGenerating(false);
     }
@@ -110,7 +117,25 @@ export function SalesOrderDetailPage() {
 
       <SalesOrderFormDialog open={editOpen} onOpenChange={setEditOpen} onSaved={load} editingOrder={so} />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      {generated && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 shadow-card">
+          <p className="mb-1 font-semibold">Invoice generated — budget notice</p>
+          <ul className="list-disc space-y-0.5 pl-4">
+            {generated.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+          <Button
+            size="sm"
+            className="mt-3 h-8 bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800"
+            onClick={() => navigate(`/customer-invoices/${generated.invoiceId}`)}
+          >
+            View Invoice
+          </Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Order Date</p>
           <p className="mt-1 text-sm font-semibold text-slate-900">{longDate(so.date)}</p>
@@ -118,6 +143,12 @@ export function SalesOrderDetailPage() {
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Net Total (ex-GST)</p>
           <p className="mt-1 font-display text-base font-bold tabular-nums text-slate-900">{inr(total)}</p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Budget Analytics</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">
+            {so.analyticAccount?.name ?? <span className="text-slate-400">Not tagged</span>}
+          </p>
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Status</p>

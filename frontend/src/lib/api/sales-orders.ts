@@ -16,6 +16,8 @@ export interface SalesOrder {
   customerId: string;
   date: string;
   status: SalesOrderStatus;
+  analyticAccountId: string | null;
+  analyticAccount?: { id: string; name: string } | null;
   lines: SalesOrderLine[];
   createdAt: string;
   updatedAt: string;
@@ -30,6 +32,7 @@ export interface SalesOrderLineInput {
 export interface CreateSalesOrderInput {
   customerId: string;
   date: string;
+  analyticAccountId?: string | null;
   lines: SalesOrderLineInput[];
 }
 
@@ -56,5 +59,8 @@ export function updateSalesOrder(id: string, input: CreateSalesOrderInput) {
 }
 
 export function generateInvoiceFromSalesOrder(id: string) {
-  return apiFetch<CustomerInvoice>(`/sales-orders/${id}/generate-invoice`, { method: "POST" });
+  return apiFetch<CustomerInvoice & { budgetWarnings?: string[] }>(
+    `/sales-orders/${id}/generate-invoice`,
+    { method: "POST" },
+  );
 }
